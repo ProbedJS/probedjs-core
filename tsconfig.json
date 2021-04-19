@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "esnext",
+        "declaration": true,
+        "outDir": "./dist",
+        "moduleResolution": "node",
+        "strict": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "lib": [
+            "esnext"
+        ]
+    },
+    "include": [
+        "src",
+        "tests"
+    ],
+    "exclude": [
+        "node_modules"
+    ]
+}

@@ -1,0 +1,36 @@
+settings:
+  import/resolver:
+    node:
+      extensions: [".ts"]
+
+env:
+  node: true
+  browser: true
+  es2021: true
+
+extends:
+  - eslint:recommended
+  - plugin:import/errors
+  - plugin:import/warnings
+  - plugin:@typescript-eslint/eslint-recommended
+  - plugin:@typescript-eslint/recommended
+
+parser: "@typescript-eslint/parser"
+parserOptions:
+  ecmaVersion: 12
+  sourceType: module
+
+plugins:
+  - "@typescript-eslint"
+  - prettier
+
+rules: 
+  "@typescript-eslint/no-non-null-assertion": off
+  prettier/prettier: error
+  eqeqeq: error
+  no-console: warn
+  require-atomic-updates: warn
+  class-methods-use-this: warn
+  no-caller: warn
+  no-empty-function: warn
+  "@typescript-eslint/ban-ts-comment": off
