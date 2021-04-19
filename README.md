@@ -2,7 +2,7 @@
 
 Core functionality for the probed system
 
-[![CI](https://github.com/ProbedJS/probejs-core/actions/workflows/ci.yml/badge.svg)](https://github.com/ProbedJS/probejs-core/actions/workflows/ci.yml)
+[![CI](https://github.com/ProbedJS/probedjs-core/actions/workflows/ci.yml/badge.svg)](https://github.com/ProbedJS/probedjs-core/actions/workflows/ci.yml)
 
 
 ## Installation
