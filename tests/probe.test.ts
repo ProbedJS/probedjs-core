@@ -14,31 +14,31 @@
  * limitations under the License.
  */
 
-import { dispose, isPNode, PNode } from '../src/Node';
-import { createProber, useOnDispose } from '../src';
+import { dispose, isPNode } from '../src/Node';
+import { createProber, PNode, finalize, useOnDispose } from '../src';
 
 describe('Basic prober', () => {
-  const { probe } = createProber({});
+  const probe = createProber({});
 
   it('Works with function without arguments', () => {
     const result = probe(() => 2);
 
     expect(isPNode(result)).toBe(true);
-    expect(result.data).toBe(2);
+    expect(finalize(result)).toBe(2);
   });
 
   it('Works with function with single argument', () => {
     const result = probe((v: number) => v + 1, 1);
 
     expect(isPNode(result)).toBe(true);
-    expect(result.data).toBe(2);
+    expect(finalize(result)).toBe(2);
   });
 
   it('Works with function with multiple arguments', () => {
     const result = probe((v1: number, v2: number) => v1 + v2, 1, 2);
 
     expect(isPNode(result)).toBe(true);
-    expect(result.data).toBe(3);
+    expect(finalize(result)).toBe(3);
   });
 
   it('Fails when using invalid CB', () => {
@@ -87,7 +87,7 @@ describe('Basic prober', () => {
 });
 
 describe('Prober with intrinsics', () => {
-  const { probe } = createProber({
+  const probe = createProber({
     aaa: (v: number) => v + 1,
     bbb: (v: number) => v + 4,
   });
@@ -99,8 +99,8 @@ describe('Prober with intrinsics', () => {
     expect(isPNode(resultA)).toBe(true);
     expect(isPNode(resultB)).toBe(true);
 
-    expect(resultA.data).toBe(2);
-    expect(resultB.data).toBe(5);
+    expect(finalize(resultA)).toBe(2);
+    expect(finalize(resultB)).toBe(5);
   });
 
   it('Fails when using wrong intrinsic', () => {
@@ -117,7 +117,7 @@ describe('Prober with intrinsics', () => {
 });
 
 describe('Component With dispose', () => {
-  const { probe } = createProber({});
+  const probe = createProber({});
 
   interface ctx {
     v: number;
@@ -133,6 +133,7 @@ describe('Component With dispose', () => {
   it('disposes when requested', () => {
     const obj: ctx = { v: 0 };
     const node = probe(component, obj);
+    finalize(node);
     expect(obj.v).toBe(1);
 
     dispose(node);
@@ -142,7 +143,7 @@ describe('Component With dispose', () => {
 });
 
 describe('Hierarchical components', () => {
-  const { probe } = createProber({});
+  const probe = createProber({});
 
   const Leaf = () => {
     return 3;
@@ -150,7 +151,7 @@ describe('Hierarchical components', () => {
 
   const Node = (v: { children: PNode<number>[] }) => {
     let total = 0;
-    v.children.forEach((x) => (total += x.data));
+    v.children.forEach((x) => (total += x.result));
     return total;
   };
 
@@ -158,7 +159,7 @@ describe('Hierarchical components', () => {
     return probe(Node, { children: [probe(Leaf), probe(Leaf), probe(Leaf)] });
   };
 
-  it('Disposes as requested', () => {
-    expect(probe(Root).data).toBe(9);
+  it('Visited all children', () => {
+    expect(finalize(probe(Root))).toBe(9);
   });
 });
