@@ -28,7 +28,16 @@
 
 //import { DisposeOp } from './Context';
 import { DisposeOp, pop as popContext, push as pushContext } from './Environment';
-import { AsPNode, PNode, IPNode, IProber, isPNode } from './Node';
+import { AsPNode, UnwrapPNode, PNode, IPNode, IProber, isPNode } from './Node';
+
+export interface NodeBuildData {
+  _cb: (...arg: any[]) => any;
+  _args: any[];
+
+  _next?: IPNode;
+  _resolveAs?: IPNode;
+  _prober: IProber;
+}
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Component<ArgsT extends any[] = any[], RetT = any> = (...arg: ArgsT) => RetT;
@@ -76,6 +85,7 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
   private _end?: IPNode;
 
   private _insertStack: (IPNode | undefined)[] = [];
+  private _endStack: (IPNode | undefined)[] = [];
 
   private _pendingOnDispose: DisposeOp[] = [];
   onDispose(op: DisposeOp): void {
@@ -102,16 +112,16 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
       }
     }
 
-    const newNode = new IPNode();
+    const newNode = new PNode<UnwrapPNode<T>>();
     const _cb = this._getCb(what);
     let _next: IPNode | undefined;
 
     if (this._queueHead) {
-      _next = this._insert!._buildInfo!._next;
+      _next = this._insert!._buildData!._next;
       if (this._insert === this._end) {
         this._end = newNode;
       }
-      this._insert!._buildInfo!._next = newNode;
+      this._insert!._buildData!._next = newNode;
       this._insert = newNode;
     } else {
       this._queueHead = newNode;
@@ -119,54 +129,63 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
       this._end = newNode;
     }
 
-    newNode._buildInfo = { _cb, _prober: this, _args, _next };
+    newNode._buildData = { _cb, _prober: this, _args, _next };
 
     return newNode as AsPNode<ProbedResult<Intrinsics, T>>;
   }
 
-  finalize<T>(target: PNode<T>): T {
+  finalize(target: IPNode): void {
+    // This can be called recursively,
     pushContext(this);
+    this._endStack.push(this._end);
 
-    let nodeToProcess: IPNode;
+    // We need to loop until target and any node probed while compiling target have been finalized.
+    // this._end will be updated accordingly inside of announce()
+    this._end = target;
+
+    let currentNode: IPNode;
     do {
-      nodeToProcess = this._queueHead!;
-      let resolvedNode = nodeToProcess;
-      while (resolvedNode._buildInfo && resolvedNode._buildInfo._resolveAs) {
-        resolvedNode = resolvedNode._buildInfo!._resolveAs;
+      currentNode = this._queueHead!;
+
+      // If a component returns a Node (as opposed to a value), then we short-circuit to the parent.
+      let destinationNode = currentNode;
+      while (destinationNode._buildData && destinationNode._buildData._resolveAs) {
+        destinationNode = destinationNode._buildData!._resolveAs;
       }
 
+      //
       this._insertStack.push(this._insert);
 
-      const { _cb, _args } = nodeToProcess._buildInfo!;
-
+      const { _cb, _args } = currentNode._buildData!;
       const cbResult = _cb(..._args);
+
       if (isPNode(cbResult)) {
-        if (cbResult.result) {
-          resolvedNode.result = cbResult.result;
+        if (cbResult.finalized) {
+          destinationNode._result = cbResult._result;
         } else {
-          cbResult._buildInfo!._resolveAs = resolvedNode;
+          cbResult._buildData!._resolveAs = destinationNode;
         }
       } else {
-        resolvedNode.result = cbResult;
+        destinationNode._result = cbResult;
       }
 
       if (this._pendingOnDispose.length > 0) {
-        if (!resolvedNode._onDispose) {
-          resolvedNode._onDispose = this._pendingOnDispose;
+        if (!destinationNode._onDispose) {
+          destinationNode._onDispose = this._pendingOnDispose;
         } else {
-          resolvedNode._onDispose = resolvedNode._onDispose.concat(this._pendingOnDispose);
+          destinationNode._onDispose = destinationNode._onDispose.concat(this._pendingOnDispose);
         }
 
         this._pendingOnDispose = [];
       }
 
-      this._queueHead = nodeToProcess._buildInfo!._next;
-      delete nodeToProcess._buildInfo;
+      this._queueHead = currentNode._buildData!._next;
+      currentNode._buildData = undefined;
       this._insert = this._insertStack.pop();
-    } while (nodeToProcess !== this._end);
+    } while (currentNode !== this._end);
 
+    this._end = this._endStack.pop();
     popContext();
-    return target.result!;
   }
 
   private _getCb<T extends keyof Intrinsics | Component>(what: T): Component {

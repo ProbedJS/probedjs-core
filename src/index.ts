@@ -16,7 +16,7 @@
 
 export { createProber } from './Prober';
 export { isDynamic, dynamic, Reader, dependant, listen, valType } from './dynamic';
-export { IPNode, PNode, finalize } from './Node';
+export { IPNode, PNode } from './Node';
 export { useOnDispose } from './hooks';
 
 // These types are not technically user-facing, however, if we don't export them,
