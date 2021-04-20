@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import { createProber } from './Prober';
+export const probe = createProber({});
+
 export { createProber } from './Prober';
 export { isDynamic, dynamic, Reader, dependant, listen, valType } from './dynamic';
 export { IPNode, PNode } from './Node';
