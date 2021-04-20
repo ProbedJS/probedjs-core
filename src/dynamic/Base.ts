@@ -1,4 +1,4 @@
-import { onDispose } from '../Context';
+import { onDispose } from '../Environment';
 import { Notifier, notify, removeListener } from '../Notifier';
 
 export interface ReaderBase<T> {

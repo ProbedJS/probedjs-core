@@ -27,7 +27,7 @@
 // type AppMappings = HTMLMapping & SVGMapping;
 
 //import { DisposeOp } from './Context';
-import { DisposeOp, pop as popContext, push as pushContext } from './Context';
+import { DisposeOp, pop as popContext, push as pushContext } from './Environment';
 import { AsPNode, PNode, IPNode, IProber, isPNode } from './Node';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

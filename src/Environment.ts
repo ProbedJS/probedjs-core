@@ -19,25 +19,25 @@ export interface Context {
   onDispose: (op: DisposeOp) => void;
 }
 
-let _currentContext: Context | null = null;
-const _contextStack: (Context | null)[] = [];
+let _currentEnv: Context | null = null;
+const _envStack: (Context | null)[] = [];
 
 export const push = (ctx: Context): void => {
-  _contextStack.push(_currentContext);
-  _currentContext = ctx;
+  _envStack.push(_currentEnv);
+  _currentEnv = ctx;
 };
 
 export const pop = (): void => {
-  if (process.env.NODE_ENV !== 'production' && _contextStack.length === 0) {
+  if (process.env.NODE_ENV !== 'production' && _envStack.length === 0) {
     throw new Error('Context underflow');
   }
-  _currentContext = _contextStack.pop()!;
+  _currentEnv = _envStack.pop()!;
 };
 
 export const onDispose = (op: DisposeOp): void => {
-  if (process.env.NODE_ENV !== 'production' && !_currentContext) {
+  if (process.env.NODE_ENV !== 'production' && !_currentEnv) {
     throw new Error('Context underflow');
   }
 
-  _currentContext!.onDispose(op);
+  _currentEnv!.onDispose(op);
 };

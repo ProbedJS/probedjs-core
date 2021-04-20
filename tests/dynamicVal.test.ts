@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { DisposeOp, pop as popContext, push as pushContext } from '../src/Context';
+import { DisposeOp, pop as popContext, push as pushContext } from '../src/Environment';
 
 import { dependant, dynamic, isDynamic } from '../src';
 import { DynamicValueReader } from '../src/dynamic/Value';

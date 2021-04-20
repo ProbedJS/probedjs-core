@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { DisposeOp, onDispose } from '../Context';
+import { DisposeOp, onDispose } from '../Environment';
 
 /** Register an operation to be executed when the component currently being probed
  * is removed from the tree.
