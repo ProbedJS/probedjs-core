@@ -11,39 +11,27 @@ Core functionality for the probed system
 npm i -D @probed/core
 ```
 
-## Usage
+## Getting started
 
 The **probed** core is intentionally fairly bare-bones, and this README speaks only about the general principles at play. If you just want to dive in directly into writing DOM components using JSX, then head over (here)[http://example.com].
 
-## A Note about TypeScript
-
-This library has been designed with the presence of TypeScript's safety net in mind. It works fine with regular
-JavaScript, but be wary that there are will be some possible footguns present without the static checker.
-
 ### Writing components - Basics
 
-Any function can be used as a Component. Simple as that. 
+Any function can be used as a component. Simple as that. 
+
+Calling `probe()`on a component with a set of arguments will return a Node. Acessing a node's result will evaluate the component if it hasn't been yet.
 
 **N.B.** While not strictly required, starting every component with an uppercase is a good practice for JSX compatibility.
 
 ```javascript
+import {probe} from "@probe/core"
+
 const Add = (x, y) => {
     return x + y;
 }
-```
 
-### Writing components - Intrinsic mappings
-
-Intrinsics maps are very important when dealing with JSX. There define components
-that can be reffered to by through a string key.
-
-**N.B.** While not strictly required, starting every intrinsic key with an lowercase is a good practice for JSX compatibility.
-
-```javascript
-const intrinsics = {
-    "add" : (x, y)=> x+y,
-    "mul" : (x, y)=> x*y,
-}
+const node = probe(Add, 1, 2);
+console.log(node.result);
 ```
 
 ### Dynamic values
@@ -61,60 +49,63 @@ x.value = 13;
 Reading from *potentially* dynamic values is done through `valueOf()` and `dependant()`.
 
 ```javascript
-const add = (x, y) => {
-    const xRightNow = x.valueOf();
-    const yRightNow = y.valueOf();
-    console.log(`Values at the time add node was called: ${xRightNow}, ${yRightNow} )`);
+import {dynamic, probe} from "@probe/core"
+
+const Add = (x, y) => {
+    console.log(`Values at the time Add was called: ${x.valueOf()}, ${y.valueOf()} )`);
     
-    const result = dependant(x, y, (vx, vy)=>vx+vy);
+    const result = dependant(x, y, (vx, vy)=>{
+        console.log("recomputing Add result");
+        vx+vy
+    });
     return result;
 }
+
+const staticNode = probe(Add, 1, 2);
+console.log(staticNode.result);
+
+const dynamicVal = dynamic(1);
+const dynamicNode = probe(Add, dynamicVal, 2);
+console.log(dynamicNode.result);
+
+dynamicVal = 3;
+console.log(dynamicNode.result);
 ```
 
-Typescript users have the option of enforcing that a value be static:
+TypeScript users have the luxury of forcing parameters to be static:
 
 ```typescript
-const add = (x: number, y:Reader<number>) => {
-    const yRightNow = y.valueOf();
-    console.log(`Values at the time add node was called: ${x}, ${yRightNow} )`);
+import {dynamic, Reader} from "@probe/core"
+
+const add = (x: number, y: Reader<number>) => {
+    console.log(`Values at the time add node was called: ${x}, ${ y.valueOf()} )`);
     
     const result = dependant(y, (vy)=>x+vy);
     return result;
 }
 ```
 
-### Evaluating Components - Probers
+## JSX - intrinsics
 
-Components are evaluated via a `probe()` function that serves a role similar to react's `createElement()`. This functions will return a `Node` with a reuslt member that will contain the return value of the node once it has been fully evaluated.
+You can create a custom `probe()` function bound against a set of intrinsics using `createProber()`
+While not strictly necessarry, we highly recommend that you use TypeScript for defining intrinsics mapping, 
+it will ensure full IDE assistance.
 
-The `finalize()` function ensures that a node has been fully evaluated, and returns its value. 
-
-```javascript
-import {probe} from '@probed/core`
-
-const Add = (x, y)=> x*y;
-const result = probe(Add, 1, 2);
-
-console.log(finalize(result));
-```
-
-You can obtain a `probe()` bound against a set of intrinsics via `createProber()`. This is meant to be used for JSX integration.
-
-```javascript
-import {createProber} from '@probed/core`
+```typescript
+import {createProber} from "@probe/core"
 
 const intrinsics = {
-    "add" : (x, y)=> x+y,
+    "add" : (x:number, y:number):number => x+y,
+    "mul" : (x:number, y:number):number => x*y,
 }
 
 const probe = createProber(intrinsics);
+
+// You can probe by the keys of the map
 probe("add", 1, 2);
+
+// You can still probe by function
+probe((x)=>x+4, 4);
 ```
 
-### Compound components
-
-...
-
-### Putting it all together
-
-...
+N.B. JSX compatibility has a few other steps that are beyond the scope of this specific package. See (@probe/html)[http://example.com] for an example of a fully realized JSX binding.

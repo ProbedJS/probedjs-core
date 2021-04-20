@@ -15,38 +15,47 @@
  */
 
 import { DisposeOp } from './Environment';
+import { NodeBuildData } from './Prober';
 
 export interface IProber {
-  finalize<T>(target: PNode<T>): T;
+  finalize(target: IPNode): void;
 }
 
-export class IPNode {
+export abstract class IPNode {
+  finalize(): void {
+    if (this._buildData) {
+      this._buildData._prober.finalize(this);
+    }
+  }
+
+  get finalized(): boolean {
+    return !this._buildData;
+  }
+
+  dispose(): void {
+    if (this._onDispose) {
+      this._onDispose.forEach((c) => c());
+      this._onDispose = undefined;
+    }
+  }
+
+  _result?: unknown;
   _probed_pnodetype?: number;
   _onDispose?: DisposeOp[];
-  result?: unknown;
 
-  _buildInfo?: {
-    _cb: (...arg: any[]) => any;
-    _args: any[];
-
-    _next?: IPNode;
-    _resolveAs?: IPNode;
-    _prober: IProber;
-  };
+  _buildData?: NodeBuildData;
 }
 
-IPNode.prototype._probed_pnodetype = 1;
-
-export interface PNode<PayloadT> extends IPNode {
-  result: PayloadT;
-}
-
-export const dispose = (node: IPNode): void => {
-  if (node._onDispose) {
-    node._onDispose.forEach((c) => c());
-    delete node._onDispose;
+export class PNode<T> extends IPNode {
+  get result(): T {
+    this.finalize();
+    return this._result!;
   }
-};
+
+  _result?: T;
+  _probed_pnodetype?: number;
+}
+PNode.prototype._probed_pnodetype = 1;
 
 export const onDispose = (node: IPNode, lst: DisposeOp): void => {
   if (!node._onDispose) {
@@ -57,15 +66,8 @@ export const onDispose = (node: IPNode, lst: DisposeOp): void => {
 };
 
 export type AsPNode<T> = T extends PNode<infer U> ? PNode<U> : PNode<T>;
-export type Unwrap<T> = T extends PNode<infer U> ? U : T;
+export type UnwrapPNode<T> = T extends PNode<infer U> ? U : T;
 
 export const isPNode = (what: unknown): what is IPNode => {
   return what !== null && typeof what === 'object' && !!(what as IPNode)._probed_pnodetype;
-};
-
-export const finalize = <T>(node: PNode<T>): T => {
-  if (node.result) {
-    return node.result;
-  }
-  return node._buildInfo!._prober.finalize(node);
 };

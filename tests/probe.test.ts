@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { dispose, isPNode } from '../src/Node';
-import { createProber, PNode, finalize, useOnDispose } from '../src';
+import { isPNode } from '../src/Node';
+import { createProber, PNode, useOnDispose } from '../src';
 
 describe('Basic prober', () => {
   const probe = createProber({});
@@ -24,21 +24,21 @@ describe('Basic prober', () => {
     const result = probe(() => 2);
 
     expect(isPNode(result)).toBe(true);
-    expect(finalize(result)).toBe(2);
+    expect(result.result).toBe(2);
   });
 
   it('Works with function with single argument', () => {
     const result = probe((v: number) => v + 1, 1);
 
     expect(isPNode(result)).toBe(true);
-    expect(finalize(result)).toBe(2);
+    expect(result.result).toBe(2);
   });
 
   it('Works with function with multiple arguments', () => {
     const result = probe((v1: number, v2: number) => v1 + v2, 1, 2);
 
     expect(isPNode(result)).toBe(true);
-    expect(finalize(result)).toBe(3);
+    expect(result.result).toBe(3);
   });
 
   it('Fails when using invalid CB', () => {
@@ -99,8 +99,8 @@ describe('Prober with intrinsics', () => {
     expect(isPNode(resultA)).toBe(true);
     expect(isPNode(resultB)).toBe(true);
 
-    expect(finalize(resultA)).toBe(2);
-    expect(finalize(resultB)).toBe(5);
+    expect(resultA.result).toBe(2);
+    expect(resultB.result).toBe(5);
   });
 
   it('Fails when using wrong intrinsic', () => {
@@ -133,10 +133,10 @@ describe('Component With dispose', () => {
   it('disposes when requested', () => {
     const obj: ctx = { v: 0 };
     const node = probe(component, obj);
-    finalize(node);
+    node.finalize();
     expect(obj.v).toBe(1);
 
-    dispose(node);
+    node.dispose();
 
     expect(obj.v).toBe(0);
   });
@@ -160,6 +160,6 @@ describe('Hierarchical components', () => {
   };
 
   it('Visited all children', () => {
-    expect(finalize(probe(Root))).toBe(9);
+    expect(probe(Root).result).toBe(9);
   });
 });
