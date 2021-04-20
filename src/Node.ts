@@ -20,20 +20,19 @@ export interface IProber {
   finalize<T>(target: PNode<T>): T;
 }
 
-interface PendingNode {
-  _cb: (...arg: any[]) => any;
-  _args: any[];
-  _prober: IProber;
-}
-
 export class IPNode {
   _probed_pnodetype?: number;
   _onDispose?: DisposeOp[];
   result?: unknown;
 
-  _next?: IPNode;
-  _pending?: PendingNode;
-  _resolve?: IPNode;
+  _buildInfo?: {
+    _cb: (...arg: any[]) => any;
+    _args: any[];
+
+    _next?: IPNode;
+    _resolveAs?: IPNode;
+    _prober: IProber;
+  };
 }
 
 IPNode.prototype._probed_pnodetype = 1;
@@ -65,5 +64,8 @@ export const isPNode = (what: unknown): what is IPNode => {
 };
 
 export const finalize = <T>(node: PNode<T>): T => {
-  return node._pending!._prober.finalize(node);
+  if (node.result) {
+    return node.result;
+  }
+  return node._buildInfo!._prober.finalize(node);
 };

@@ -103,14 +103,15 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
     }
 
     const newNode = new IPNode();
-    newNode._pending = { _cb: this._getCb(what), _args, _prober: this };
+    const _cb = this._getCb(what);
+    let _next: IPNode | undefined;
 
     if (this._queueHead) {
-      newNode._next = this._insert!._next;
+      _next = this._insert!._buildInfo!._next;
       if (this._insert === this._end) {
         this._end = newNode;
       }
-      this._insert!._next = newNode;
+      this._insert!._buildInfo!._next = newNode;
       this._insert = newNode;
     } else {
       this._queueHead = newNode;
@@ -118,33 +119,32 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
       this._end = newNode;
     }
 
+    newNode._buildInfo = { _cb, _prober: this, _args, _next };
+
     return newNode as AsPNode<ProbedResult<Intrinsics, T>>;
   }
 
   finalize<T>(target: PNode<T>): T {
     pushContext(this);
-    if (target.result) {
-      return target.result;
-    }
 
     let nodeToProcess: IPNode;
     do {
       nodeToProcess = this._queueHead!;
       let resolvedNode = nodeToProcess;
-      while (resolvedNode._resolve) {
-        resolvedNode = resolvedNode._resolve;
+      while (resolvedNode._buildInfo && resolvedNode._buildInfo._resolveAs) {
+        resolvedNode = resolvedNode._buildInfo!._resolveAs;
       }
 
       this._insertStack.push(this._insert);
 
-      const { _cb, _args } = nodeToProcess._pending!;
+      const { _cb, _args } = nodeToProcess._buildInfo!;
 
       const cbResult = _cb(..._args);
       if (isPNode(cbResult)) {
         if (cbResult.result) {
           resolvedNode.result = cbResult.result;
         } else {
-          cbResult._resolve = resolvedNode;
+          cbResult._buildInfo!._resolveAs = resolvedNode;
         }
       } else {
         resolvedNode.result = cbResult;
@@ -160,7 +160,8 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
         this._pendingOnDispose = [];
       }
 
-      this._queueHead = nodeToProcess._next;
+      this._queueHead = nodeToProcess._buildInfo!._next;
+      delete nodeToProcess._buildInfo;
       this._insert = this._insertStack.pop();
     } while (nodeToProcess !== this._end);
 

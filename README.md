@@ -58,12 +58,12 @@ x.addListener((v)=>console.log(`x is now ${v}`));
 x.value = 13;
 ```
 
-Reading from *potentially* dynamic values is done through `extract()` and `dependant()`.
+Reading from *potentially* dynamic values is done through `valueOf()` and `dependant()`.
 
 ```javascript
 const add = (x, y) => {
-    const xRightNow = extract(x);
-    const yRightNow = extract(y);
+    const xRightNow = x.valueOf();
+    const yRightNow = y.valueOf();
     console.log(`Values at the time add node was called: ${xRightNow}, ${yRightNow} )`);
     
     const result = dependant(x, y, (vx, vy)=>vx+vy);
@@ -75,7 +75,7 @@ Typescript users have the option of enforcing that a value be static:
 
 ```typescript
 const add = (x: number, y:Reader<number>) => {
-    const yRightNow = extract(y);
+    const yRightNow = y.valueOf();
     console.log(`Values at the time add node was called: ${x}, ${yRightNow} )`);
     
     const result = dependant(y, (vy)=>x+vy);
@@ -85,16 +85,9 @@ const add = (x: number, y:Reader<number>) => {
 
 ### Evaluating Components - Probers
 
-Components are evaluated via a `probe()` or `rootProbe()` function that serves the same role as react's
-`createElement()`. These functions will return a `Node` with a data member that will contain the return value of the node once it has been fully evaluated.
+Components are evaluated via a `probe()` function that serves a role similar to react's `createElement()`. This functions will return a `Node` with a reuslt member that will contain the return value of the node once it has been fully evaluated.
 
-The difference between `probe()` and `rootProbe()` is that `rootProbe()` is *guaranteed* to have populated the `data` by the time it returns.
-
-Rule of thumb:
-- By default: use `probe()`
-- If you absolutly need to consume the result of a node immediately, and you are code that may be called from within a component, use `rootProbe()` instead.
-- Never use `rootProbe()` within a recursive code path. (we'll almost certainly add a check for that.)
- 
+The `finalize()` function ensures that a node has been fully evaluated, and returns its value. 
 
 ```javascript
 import {probe} from '@probed/core`
@@ -102,10 +95,10 @@ import {probe} from '@probed/core`
 const Add = (x, y)=> x*y;
 const result = probe(Add, 1, 2);
 
-console.log(result.data);
+console.log(finalize(result));
 ```
 
-You can obtain a `probe()` and `rootProbe()` bound against a set of intrinsics via `createProber()`. 
+You can obtain a `probe()` bound against a set of intrinsics via `createProber()`. This is meant to be used for JSX integration.
 
 ```javascript
 import {createProber} from '@probed/core`
@@ -114,12 +107,9 @@ const intrinsics = {
     "add" : (x, y)=> x+y,
 }
 
-const {probe} = createProber(intrinsics);
-
+const probe = createProber(intrinsics);
+probe("add", 1, 2);
 ```
-
-You might be wondering: "Why wouldn't I simply always use `rootProbe()`?". The answer is that it would
-lead to very deep callstacks. Using `probe()` allows for arbitrarily deep nested nodes, memory allowing.
 
 ### Compound components
 
