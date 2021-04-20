@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { DisposeOp } from './Context';
+import { DisposeOp } from './Environment';
 
 export interface IProber {
   finalize<T>(target: PNode<T>): T;
