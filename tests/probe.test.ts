@@ -15,11 +15,9 @@
  */
 
 import { isPNode } from '../src/Node';
-import { createProber, PNode, useOnDispose } from '../src';
+import { probe, createProber, PNode, useOnDispose } from '../src';
 
 describe('Basic prober', () => {
-  const probe = createProber({});
-
   it('Works with function without arguments', () => {
     const result = probe(() => 2);
 
@@ -87,14 +85,14 @@ describe('Basic prober', () => {
 });
 
 describe('Prober with intrinsics', () => {
-  const probe = createProber({
+  const sutProbe = createProber({
     aaa: (v: number) => v + 1,
     bbb: (v: number) => v + 4,
   });
 
   it('Produces a payload', () => {
-    const resultA = probe('aaa', 1);
-    const resultB = probe('bbb', 1);
+    const resultA = sutProbe('aaa', 1);
+    const resultB = sutProbe('bbb', 1);
 
     expect(isPNode(resultA)).toBe(true);
     expect(isPNode(resultB)).toBe(true);
@@ -106,19 +104,17 @@ describe('Prober with intrinsics', () => {
   it('Fails when using wrong intrinsic', () => {
     expect(() => {
       //@ts-expect-error
-      probe('aab', {});
+      sutProbe('aab', {});
     }).toThrow();
 
     expect(() => {
       //@ts-expect-error
-      probe('', {});
+      sutProbe('', {});
     }).toThrow();
   });
 });
 
 describe('Component With dispose', () => {
-  const probe = createProber({});
-
   interface ctx {
     v: number;
   }
@@ -143,8 +139,6 @@ describe('Component With dispose', () => {
 });
 
 describe('Hierarchical components', () => {
-  const probe = createProber({});
-
   const Leaf = () => {
     return 3;
   };
