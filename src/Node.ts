@@ -23,8 +23,8 @@ export interface IProber {
 
 export abstract class IPNode {
   finalize(): void {
-    if (!this._result) {
-      this._buildData?._prober.finalize(this);
+    if (this._buildData) {
+      this._buildData._prober.finalize(this);
     }
   }
 
