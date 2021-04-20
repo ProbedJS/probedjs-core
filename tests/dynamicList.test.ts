@@ -20,44 +20,44 @@ import { dynamic, isDynamic } from '../src';
 
 let disposeQueue: DisposeOp[] = [];
 const cleanup = () => {
-  disposeQueue.forEach((v) => v());
-  disposeQueue = [];
+    disposeQueue.forEach((v) => v());
+    disposeQueue = [];
 };
 
 beforeEach(() => {
-  pushContext({
-    onDispose: (op: DisposeOp) => disposeQueue.push(op),
-  });
+    pushContext({
+        _onDispose: (op: DisposeOp) => disposeQueue.push(op),
+    });
 });
 
 afterEach(() => {
-  cleanup();
-  popContext();
+    cleanup();
+    popContext();
 });
 
 describe('Static array', () => {
-  it('is not seen as dynamic', () => {
-    expect(isDynamic([])).toBeFalsy();
-    expect(isDynamic([12])).toBeFalsy();
-  });
+    it('is not seen as dynamic', () => {
+        expect(isDynamic([])).toBeFalsy();
+        expect(isDynamic([12])).toBeFalsy();
+    });
 });
 
 describe('Dynamic Array', () => {
-  it('Initialized correctly', () => {
-    const x = dynamic([1, 2]);
-    expect(x.current).toEqual([1, 2]);
-  });
+    it('Initialized correctly', () => {
+        const x = dynamic([1, 2]);
+        expect(x.current).toEqual([1, 2]);
+    });
 
-  it('Can Be Mapped', () => {
-    const x = dynamic([1, 2, 3]);
-    const y = x.map((x: number): number => x * x);
+    it('Can Be Mapped', () => {
+        const x = dynamic([1, 2, 3]);
+        const y = x.map((x: number): number => x * x);
 
-    expect(y.current).toEqual([1, 4, 9]);
+        expect(y.current).toEqual([1, 4, 9]);
 
-    x.push(4);
-    expect(y.current).toEqual([1, 4, 9, 16]);
+        x.push(4);
+        expect(y.current).toEqual([1, 4, 9, 16]);
 
-    x.current = [2, 2, 2];
-    expect(y.current).toEqual([4, 4, 4]);
-  });
+        x.current = [2, 2, 2];
+        expect(y.current).toEqual([4, 4, 4]);
+    });
 });

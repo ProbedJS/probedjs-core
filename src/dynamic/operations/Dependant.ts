@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,14 +21,14 @@ export function dependant<T, U>(v: DynamicReader<T>, cb: (v: T) => U): DynamicRe
 export function dependant<T, U>(v: T, cb: (v: T) => U): U;
 
 export function dependant<T, U>(v: Reader<T>, cb: (v: T) => U): Reader<U> {
-  // TODO: dependant needs to be able to handle a LIST of readers, not just a single one.
-  if (isDynamic(v)) {
-    const result = dynamic(cb(v.current));
+    // TODO: dependant needs to be able to handle a LIST of readers, not just a single one.
+    if (isDynamic(v)) {
+        const result = dynamic(cb(v.current));
 
-    v.addListener((newVal) => result.set(cb(newVal)));
+        v.addListener((newVal) => result.set(cb(newVal)));
 
-    return (result as unknown) as Reader<U>;
-  } else {
-    return cb(v);
-  }
+        return (result as unknown) as Reader<U>;
+    } else {
+        return cb(v);
+    }
 }

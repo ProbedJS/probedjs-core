@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import { isDynamic, ValueReader } from '../Reader';
 
 /** Obtains the type of the underlying value type */
 export const valType = <T>(v: ValueReader<T>): string => {
-  if (isDynamic(v)) {
-    return typeof v.current;
-  } else {
-    return typeof v;
-  }
+    if (isDynamic(v)) {
+        return typeof v.current;
+    } else {
+        return typeof v;
+    }
 };

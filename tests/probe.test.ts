@@ -18,142 +18,142 @@ import { isPNode } from '../src/Node';
 import { probe, createProber, PNode, useOnDispose } from '../src';
 
 describe('Basic prober', () => {
-  it('Works with function without arguments', () => {
-    const result = probe(() => 2);
+    it('Works with function without arguments', () => {
+        const result = probe(() => 2);
 
-    expect(isPNode(result)).toBe(true);
-    expect(result.result).toBe(2);
-  });
+        expect(isPNode(result)).toBe(true);
+        expect(result.result).toBe(2);
+    });
 
-  it('Works with function with single argument', () => {
-    const result = probe((v: number) => v + 1, 1);
+    it('Works with function with single argument', () => {
+        const result = probe((v: number) => v + 1, 1);
 
-    expect(isPNode(result)).toBe(true);
-    expect(result.result).toBe(2);
-  });
+        expect(isPNode(result)).toBe(true);
+        expect(result.result).toBe(2);
+    });
 
-  it('Works with function with multiple arguments', () => {
-    const result = probe((v1: number, v2: number) => v1 + v2, 1, 2);
+    it('Works with function with multiple arguments', () => {
+        const result = probe((v1: number, v2: number) => v1 + v2, 1, 2);
 
-    expect(isPNode(result)).toBe(true);
-    expect(result.result).toBe(3);
-  });
+        expect(isPNode(result)).toBe(true);
+        expect(result.result).toBe(3);
+    });
 
-  it('Fails when using invalid CB', () => {
-    expect(() => {
-      //@ts-expect-error
-      probe(null);
-    }).toThrow();
+    it('Fails when using invalid CB', () => {
+        expect(() => {
+            //@ts-expect-error
+            probe(null);
+        }).toThrow();
 
-    expect(() => {
-      //@ts-ignore
-      probe(undefined);
-    }).toThrow();
+        expect(() => {
+            //@ts-ignore
+            probe(undefined);
+        }).toThrow();
 
-    expect(() => {
-      //@ts-expect-error
-      probe(12);
-    }).toThrow();
+        expect(() => {
+            //@ts-expect-error
+            probe(12);
+        }).toThrow();
 
-    expect(() => {
-      //@ts-expect-error
-      probe(true);
-    }).toThrow();
+        expect(() => {
+            //@ts-expect-error
+            probe(true);
+        }).toThrow();
 
-    expect(() => {
-      //@ts-expect-error
-      probe([]);
-    }).toThrow();
+        expect(() => {
+            //@ts-expect-error
+            probe([]);
+        }).toThrow();
 
-    expect(() => {
-      //@ts-expect-error
-      probe({});
-    }).toThrow();
-  });
+        expect(() => {
+            //@ts-expect-error
+            probe({});
+        }).toThrow();
+    });
 
-  it('Fails when using an intrinsic', () => {
-    expect(() => {
-      //@ts-expect-error
-      probe('yo', {});
-    }).toThrow();
+    it('Fails when using an intrinsic', () => {
+        expect(() => {
+            //@ts-expect-error
+            probe('yo', {});
+        }).toThrow();
 
-    expect(() => {
-      //@ts-expect-error
-      probe('', {});
-    }).toThrow();
-  });
+        expect(() => {
+            //@ts-expect-error
+            probe('', {});
+        }).toThrow();
+    });
 });
 
 describe('Prober with intrinsics', () => {
-  const sutProbe = createProber({
-    aaa: (v: number) => v + 1,
-    bbb: (v: number) => v + 4,
-  });
+    const sutProbe = createProber({
+        aaa: (v: number) => v + 1,
+        bbb: (v: number) => v + 4,
+    });
 
-  it('Produces a payload', () => {
-    const resultA = sutProbe('aaa', 1);
-    const resultB = sutProbe('bbb', 1);
+    it('Produces a payload', () => {
+        const resultA = sutProbe('aaa', 1);
+        const resultB = sutProbe('bbb', 1);
 
-    expect(isPNode(resultA)).toBe(true);
-    expect(isPNode(resultB)).toBe(true);
+        expect(isPNode(resultA)).toBe(true);
+        expect(isPNode(resultB)).toBe(true);
 
-    expect(resultA.result).toBe(2);
-    expect(resultB.result).toBe(5);
-  });
+        expect(resultA.result).toBe(2);
+        expect(resultB.result).toBe(5);
+    });
 
-  it('Fails when using wrong intrinsic', () => {
-    expect(() => {
-      //@ts-expect-error
-      sutProbe('aab', {});
-    }).toThrow();
+    it('Fails when using wrong intrinsic', () => {
+        expect(() => {
+            //@ts-expect-error
+            sutProbe('aab', {});
+        }).toThrow();
 
-    expect(() => {
-      //@ts-expect-error
-      sutProbe('', {});
-    }).toThrow();
-  });
+        expect(() => {
+            //@ts-expect-error
+            sutProbe('', {});
+        }).toThrow();
+    });
 });
 
 describe('Component With dispose', () => {
-  interface ctx {
-    v: number;
-  }
-  const component = (x: ctx) => {
-    x.v += 1;
+    interface ctx {
+        v: number;
+    }
+    const component = (x: ctx) => {
+        x.v += 1;
 
-    useOnDispose(() => {
-      x.v -= 1;
+        useOnDispose(() => {
+            x.v -= 1;
+        });
+    };
+
+    it('disposes when requested', () => {
+        const obj: ctx = { v: 0 };
+        const node = probe(component, obj);
+        node.finalize();
+        expect(obj.v).toBe(1);
+
+        node.dispose();
+
+        expect(obj.v).toBe(0);
     });
-  };
-
-  it('disposes when requested', () => {
-    const obj: ctx = { v: 0 };
-    const node = probe(component, obj);
-    node.finalize();
-    expect(obj.v).toBe(1);
-
-    node.dispose();
-
-    expect(obj.v).toBe(0);
-  });
 });
 
 describe('Hierarchical components', () => {
-  const Leaf = () => {
-    return 3;
-  };
+    const Leaf = () => {
+        return 3;
+    };
 
-  const Node = (v: { children: PNode<number>[] }) => {
-    let total = 0;
-    v.children.forEach((x) => (total += x.result));
-    return total;
-  };
+    const Node = (v: { children: PNode<number>[] }) => {
+        let total = 0;
+        v.children.forEach((x) => (total += x.result));
+        return total;
+    };
 
-  const Root = () => {
-    return probe(Node, { children: [probe(Leaf), probe(Leaf), probe(Leaf)] });
-  };
+    const Root = () => {
+        return probe(Node, { children: [probe(Leaf), probe(Leaf), probe(Leaf)] });
+    };
 
-  it('Visited all children', () => {
-    expect(probe(Root).result).toBe(9);
-  });
+    it('Visited all children', () => {
+        expect(probe(Root).result).toBe(9);
+    });
 });

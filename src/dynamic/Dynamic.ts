@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,9 +21,9 @@ export function dynamic<T>(init: Array<T>): DynamicList<T[]>;
 export function dynamic<T>(init: T): DynamicValue<T>;
 
 export function dynamic<T>(init: T): DynamicValue<T> | DynamicList<T> {
-  if (Array.isArray(init)) {
-    return new DynamicList<T>(init);
-  }
+    if (Array.isArray(init)) {
+        return new DynamicList<T>(init);
+    }
 
-  return new DynamicValue(init);
+    return new DynamicValue(init);
 }

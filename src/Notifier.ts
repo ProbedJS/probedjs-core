@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,11 @@ export type Listener<T> = (current: T) => void;
 export type Notifier<T> = Listener<T>[];
 
 export const notify = <T>(notifier: Notifier<T>, v: T): void => {
-  let len = notifier.length;
-  while (len--) {
-    notifier[len](v);
-  }
+    let len = notifier.length;
+    while (len--) {
+        notifier[len](v);
+    }
 };
 export const removeListener = <T>(notifier: Notifier<T>, lst: Listener<T>): void => {
-  notifier.splice(notifier.indexOf(lst), 1);
+    notifier.splice(notifier.indexOf(lst), 1);
 };

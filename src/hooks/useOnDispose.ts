@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,5 +20,5 @@ import { DisposeOp, onDispose } from '../Environment';
  * is removed from the tree.
  */
 export const useOnDispose = (op: DisposeOp): void => {
-  onDispose(op);
+    onDispose(op);
 };

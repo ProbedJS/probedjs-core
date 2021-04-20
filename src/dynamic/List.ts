@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,61 +23,61 @@ type ValueType<T> = T extends Array<infer U> ? U : never;
 type MapCallback<T, U> = (v: ValueType<T>, index: number, array: T) => U;
 
 interface MapCacheEntry<U> {
-  value: U;
-  index: number;
-  indexProp?: DynamicValue<number>;
+    value: U;
+    index: number;
+    indexProp?: DynamicValue<number>;
 }
 
 export interface DynamicListReader<T> extends DynamicValueReader<T> {
-  /** Obtain the current value of the dynamic */
-  map<U>(cb: MapCallback<T, U>): DynamicList<U[]>;
+    /** Obtain the current value of the dynamic */
+    map<U>(cb: MapCallback<T, U>): DynamicList<U[]>;
 }
 
 export class DynamicList<T> extends DynamicBase<T> implements ReaderBase<T> {
-  push(v: ValueType<T>): void {
-    // TODO: push(...items: T[]): number;
-    ((this._value as unknown) as ValueType<T>[]).push(v);
-    if (this._notifier) {
-      notify(this._notifier, this._value);
+    push(v: ValueType<T>): void {
+        // TODO: push(...items: T[]): number;
+        ((this._value as unknown) as ValueType<T>[]).push(v);
+        if (this._notifier) {
+            notify(this._notifier, this._value);
+        }
     }
-  }
 
-  map<U>(cb: MapCallback<T, U>): DynamicList<U[]> {
-    let cache = new Map<ValueType<T>, MapCacheEntry<U>>();
-    const indexSensitive = cb.length >= 2;
+    map<U>(cb: MapCallback<T, U>): DynamicList<U[]> {
+        let cache = new Map<ValueType<T>, MapCacheEntry<U>>();
+        const indexSensitive = cb.length >= 2;
 
-    const regenerate = (v: ValueType<T>[]): U[] => {
-      const newCache = new Map<ValueType<T>, MapCacheEntry<U>>();
+        const regenerate = (v: ValueType<T>[]): U[] => {
+            const newCache = new Map<ValueType<T>, MapCacheEntry<U>>();
 
-      const result = v.map((v, i, a) => {
-        const cacheEntry = cache.get(v);
-        if (cacheEntry) {
-          if (indexSensitive && i !== cacheEntry.index) {
-            cacheEntry.indexProp!.set(i);
-          }
-          newCache.set(v, cacheEntry);
-          return cacheEntry.value;
-        }
+            const result = v.map((v, i, a) => {
+                const cacheEntry = cache.get(v);
+                if (cacheEntry) {
+                    if (indexSensitive && i !== cacheEntry.index) {
+                        cacheEntry.indexProp!.set(i);
+                    }
+                    newCache.set(v, cacheEntry);
+                    return cacheEntry.value;
+                }
 
-        const value = cb(v, i, (a as unknown) as T);
-        let indexProp: DynamicValue<number> | undefined = undefined;
-        if (indexSensitive) {
-          indexProp = new DynamicValue<number>(i);
-        }
-        newCache.set(v, { value, index: i, indexProp });
+                const value = cb(v, i, (a as unknown) as T);
+                let indexProp: DynamicValue<number> | undefined = undefined;
+                if (indexSensitive) {
+                    indexProp = new DynamicValue<number>(i);
+                }
+                newCache.set(v, { value, index: i, indexProp });
 
-        return value;
-      });
+                return value;
+            });
 
-      cache = newCache;
-      return result;
-    };
+            cache = newCache;
+            return result;
+        };
 
-    const result = new DynamicList<U[]>(regenerate((this.current as unknown) as ValueType<T>[]));
+        const result = new DynamicList<U[]>(regenerate((this.current as unknown) as ValueType<T>[]));
 
-    this.addListener((v) => {
-      result._value = regenerate((v as unknown) as ValueType<T>[]);
-    });
-    return result;
-  }
+        this.addListener((v) => {
+            result._value = regenerate((v as unknown) as ValueType<T>[]);
+        });
+        return result;
+    }
 }

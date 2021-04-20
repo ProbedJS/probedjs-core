@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,28 +16,28 @@
 
 export type DisposeOp = () => void;
 export interface Context {
-  onDispose: (op: DisposeOp) => void;
+    _onDispose: (op: DisposeOp) => void;
 }
 
 let _currentEnv: Context | null = null;
 const _envStack: (Context | null)[] = [];
 
 export const push = (ctx: Context): void => {
-  _envStack.push(_currentEnv);
-  _currentEnv = ctx;
+    _envStack.push(_currentEnv);
+    _currentEnv = ctx;
 };
 
 export const pop = (): void => {
-  if (process.env.NODE_ENV !== 'production' && _envStack.length === 0) {
-    throw new Error('Context underflow');
-  }
-  _currentEnv = _envStack.pop()!;
+    if (process.env.NODE_ENV !== 'production' && _envStack.length === 0) {
+        throw new Error('Context underflow');
+    }
+    _currentEnv = _envStack.pop()!;
 };
 
 export const onDispose = (op: DisposeOp): void => {
-  if (process.env.NODE_ENV !== 'production' && !_currentEnv) {
-    throw new Error('Context underflow');
-  }
+    if (process.env.NODE_ENV !== 'production' && !_currentEnv) {
+        throw new Error('Context underflow');
+    }
 
-  _currentEnv!.onDispose(op);
+    _currentEnv!._onDispose(op);
 };

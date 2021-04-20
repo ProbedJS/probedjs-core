@@ -17,126 +17,126 @@
 import { DisposeOp, pop as popContext, push as pushContext } from '../src/Environment';
 
 import { dependant, dynamic, isDynamic } from '../src';
-import { DynamicValueReader } from '../src/dynamic/Value';
+import { Dynamic       ValueReader } from '../src/dynamic/Value';
 
 let disposeQueue: DisposeOp[] = [];
 const cleanup = () => {
-  disposeQueue.forEach((v) => v());
-  disposeQueue = [];
+    disposeQueue.forEach((v) => v());
+    disposeQueue = [];
 };
 
 beforeEach(() => {
-  pushContext({
-    onDispose: (op: DisposeOp) => disposeQueue.push(op),
-  });
+    pushContext({
+        _onDispose: (op: DisposeOp) => disposeQueue.push(op),
+    });
 });
 
 afterEach(() => {
-  cleanup();
-  popContext();
+    cleanup();
+    popContext();
 });
 
 describe('Static Value', () => {
-  it('is not seen as dynamic', () => {
-    expect(isDynamic(12)).toBeFalsy();
-    expect(isDynamic(true)).toBeFalsy();
-    expect(isDynamic(undefined)).toBeFalsy();
-    expect(isDynamic(null)).toBeFalsy();
-    expect(isDynamic('hullo')).toBeFalsy();
-    expect(isDynamic({ a: 12 })).toBeFalsy();
-  });
+    it('is not seen as dynamic', () => {
+        expect(isDynamic(12)).toBeFalsy();
+        expect(isDynamic(true)).toBeFalsy();
+        expect(isDynamic(undefined)).toBeFalsy();
+        expect(isDynamic(null)).toBeFalsy();
+        expect(isDynamic('hullo')).toBeFalsy();
+        expect(isDynamic({ a: 12 })).toBeFalsy();
+    });
 });
 
 describe('Dynamic Value', () => {
-  it('Initialized correctly', () => {
-    const x = dynamic(12);
-    expect(x.current).toBe(12);
-  });
-
-  it('is accessible via valueof()', () => {
-    const x = dynamic(12);
-    expect(x.valueOf() + 2).toBe(14);
-  });
-
-  it('is seen as dynamic', () => {
-    const x = dynamic(12);
-    expect(isDynamic(x)).toBeTruthy();
-  });
-
-  it('Reassigns new values', () => {
-    const x = dynamic(12);
-    expect(x.valueOf()).toBe(12);
-
-    x.set(23);
-    expect(x.valueOf()).toBe(23);
-  });
-
-  it('Notifies of changes', () => {
-    const x = dynamic(12);
-
-    let y = 0;
-    x.addListener(() => {
-      y += 1;
+    it('Initialized correctly', () => {
+        const x = dynamic(12);
+        expect(x.current).toBe(12);
     });
 
-    x.set(23);
-    expect(y).toBe(1);
-    expect(x.valueOf()).toBe(23);
-
-    // Setting to same value should not trigger notification.
-    x.set(23);
-    expect(y).toBe(1);
-    expect(x.valueOf()).toBe(23);
-  });
-
-  it('Cleans up correctly', () => {
-    const x = dynamic(12);
-
-    let a = 0;
-    let b = 0;
-    let c = 0;
-    x.addListener(() => {
-      a += 1;
+    it('is accessible via valueof()', () => {
+        const x = dynamic(12);
+        expect(x.valueOf() + 2).toBe(14);
     });
 
-    x.addListener(() => {
-      b += 1;
+    it('is seen as dynamic', () => {
+        const x = dynamic(12);
+        expect(isDynamic(x)).toBeTruthy();
     });
 
-    x.addListener(() => {
-      c += 1;
+    it('Reassigns new values', () => {
+        const x = dynamic(12);
+        expect(x.valueOf()).toBe(12);
+
+        x.set(23);
+        expect(x.valueOf()).toBe(23);
     });
 
-    x.set(13);
-    expect(a).toBe(1);
-    expect(b).toBe(1);
-    expect(c).toBe(1);
+    it('Notifies of changes', () => {
+        const x = dynamic(12);
 
-    x.set(14);
-    expect(a).toBe(2);
-    expect(b).toBe(2);
-    expect(c).toBe(2);
+        let y = 0;
+        x.addListener(() => {
+            y += 1;
+        });
 
-    cleanup();
-    x.set(15);
-    expect(a).toBe(2);
-    expect(b).toBe(2);
-    expect(c).toBe(2);
-  });
+        x.set(23);
+        expect(y).toBe(1);
+        expect(x.valueOf()).toBe(23);
+
+        // Setting to same value should not trigger notification.
+        x.set(23);
+        expect(y).toBe(1);
+        expect(x.valueOf()).toBe(23);
+    });
+
+    it('Cleans up correctly', () => {
+        const x = dynamic(12);
+
+        let a = 0;
+        let b = 0;
+        let c = 0;
+        x.addListener(() => {
+            a += 1;
+        });
+
+        x.addListener(() => {
+            b += 1;
+        });
+
+        x.addListener(() => {
+            c += 1;
+        });
+
+        x.set(13);
+        expect(a).toBe(1);
+        expect(b).toBe(1);
+        expect(c).toBe(1);
+
+        x.set(14);
+        expect(a).toBe(2);
+        expect(b).toBe(2);
+        expect(c).toBe(2);
+
+        cleanup();
+        x.set(15);
+        expect(a).toBe(2);
+        expect(b).toBe(2);
+        expect(c).toBe(2);
+    });
 });
 
 describe('Dependant value', () => {
-  it('recognizes values', () => {
-    const y: number = dependant(12, (x) => x + x);
-    expect(y).toBe(24);
-  });
+    it('recognizes values', () => {
+        const y: number = dependant(12, (x) => x + x);
+        expect(y).toBe(24);
+    });
 
-  it('recognizes dynamics', () => {
-    const v = dynamic(12);
-    const y: DynamicValueReader<number> = dependant(v, (x) => x + x);
-    expect(y.current).toBe(24);
+    it('recognizes dynamics', () => {
+        const v = dynamic(12);
+        const y: DynamicValueReader<number> = dependant(v, (x) => x + x);
+        expect(y.current).toBe(24);
 
-    v.current = 13;
-    expect(y.current).toBe(26);
-  });
+        v.current = 13;
+        expect(y.current).toBe(26);
+    });
 });

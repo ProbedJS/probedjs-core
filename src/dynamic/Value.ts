@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import { DynamicBase, ReaderBase } from './Base';
 
 export interface DynamicValueReader<T> extends ReaderBase<T> {
-  /** Will be invoked whenever the value changes. */
-  valueOf: () => T;
+    /** Will be invoked whenever the value changes. */
+    valueOf: () => T;
 }
 
 export class DynamicValue<T> extends DynamicBase<T> implements DynamicValueReader<T> {
-  valueOf(): T {
-    return this._value;
-  }
+    valueOf(): T {
+        return this._value;
+    }
 }
