@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-export { createProber } from './Probe';
+export { createProber } from './Prober';
 export { isDynamic, dynamic, Reader, dependant, listen, valType } from './dynamic';
-export { IPNode, PNode } from './Node';
+export { IPNode, PNode, finalize } from './Node';
 export { useOnDispose } from './hooks';
 
 // These types are not technically user-facing, however, if we don't export them,
 // tsc inlines them where needed, and "something" breaks in that process.
-export { ProbedParams as __ProbedParams, ProbedResult as __ProbedResult } from './Probe';
+export { ProbedParams as __ProbedParams, ProbedResult as __ProbedResult } from './Prober';

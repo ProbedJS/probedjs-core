@@ -16,16 +16,30 @@
 
 import { DisposeOp } from './Context';
 
+export interface IProber {
+  finalize<T>(target: PNode<T>): T;
+}
+
+interface PendingNode {
+  _cb: (...arg: any[]) => any;
+  _args: any[];
+  _prober: IProber;
+}
+
 export class IPNode {
   _probed_pnodetype?: number;
   _onDispose?: DisposeOp[];
-  data?: unknown;
+  result?: unknown;
+
+  _next?: IPNode;
+  _pending?: PendingNode;
+  _resolve?: IPNode;
 }
 
 IPNode.prototype._probed_pnodetype = 1;
 
 export interface PNode<PayloadT> extends IPNode {
-  data: PayloadT;
+  result: PayloadT;
 }
 
 export const dispose = (node: IPNode): void => {
@@ -48,4 +62,8 @@ export type Unwrap<T> = T extends PNode<infer U> ? U : T;
 
 export const isPNode = (what: unknown): what is IPNode => {
   return what !== null && typeof what === 'object' && !!(what as IPNode)._probed_pnodetype;
+};
+
+export const finalize = <T>(node: PNode<T>): T => {
+  return node._pending!._prober.finalize(node);
 };

@@ -26,8 +26,8 @@ plugins:
 
 rules: 
   "@typescript-eslint/no-non-null-assertion": off
+  "@typescript-eslint/no-explicit-any": off
   prettier/prettier: error
-  eqeqeq: error
   no-console: warn
   require-atomic-updates: warn
   class-methods-use-this: warn
