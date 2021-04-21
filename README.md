@@ -3,7 +3,7 @@
 Core functionality for the probed system
 
 [![CI](https://github.com/ProbedJS/probedjs-core/actions/workflows/ci.yml/badge.svg)](https://github.com/ProbedJS/probedjs-core/actions/workflows/ci.yml)
-
+[![Coverage Status](https://coveralls.io/repos/github/ProbedJS/probedjs-core/badge.svg?branch=main)](https://coveralls.io/github/ProbedJS/probedjs-core?branch=main)
 
 ## Installation
 
