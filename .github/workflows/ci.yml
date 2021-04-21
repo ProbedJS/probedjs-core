@@ -12,7 +12,7 @@ on:
     - '.github/workflows/**'
 
 jobs:
-  build:
+  checks:
     runs-on: ubuntu-latest
 
     steps:
@@ -51,7 +51,7 @@ jobs:
     
     - name: License check
       run: pnpm run licenseCheck 
-  
+
     # Source Tests 
     - name: Unit tests
       env:
@@ -59,6 +59,40 @@ jobs:
         COVERAGE: 1
       run: pnpm run test:full
 
+    # Save results    
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+  
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Use Node.js 15.x
+      uses: actions/setup-node@v2
+      with:
+        node-version: 15.x
+    
+    - name: Cache pnpm modules
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-pnpm-modules
+      with:
+        path: ~/.pnpm-store
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-15.x-${{ hashFiles('**/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-15.x-
+    
+    - name: Setup PNPM
+      uses: pnpm/action-setup@v2.0.0
+      with:
+        version: 6.0.2
+        run_install: |
+          - args: [--frozen-lockfile, --strict-peer-dependencies]
+  
     # Build
     - name: Build
       run: pnpm run build
@@ -66,12 +100,6 @@ jobs:
     # Sanity Checks
     - name: Post-build repo check
       run: git diff --exit-code
-
-    # Save results    
-    - name: Coveralls
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Archive Build
       uses: actions/upload-artifact@v2
