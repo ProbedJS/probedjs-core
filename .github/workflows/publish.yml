@@ -95,6 +95,7 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 15.x
+        registry-url: 'https://registry.npmjs.org'
 
     - name: Obtain build
       uses: actions/download-artifact@v2
