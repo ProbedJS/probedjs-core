@@ -17,9 +17,9 @@ npm i -D @probed/core
 
 ## Getting started
 
-The **probed** core is intentionally fairly bare-bones, and this readme speaks only about the general principles at play. If you just want to dive in directly into writing DOM components using JSX, then head over [here](http://example.com).
+The Probed core is intentionally fairly bare-bones, and this readme speaks only about the general principles at play. If you just want to dive in directly into writing DOM components using JSX, then head over [here](http://example.com).
 
-### Writing components - Basics
+### Components - Basics
 
 Any function can be used as a component. Simple as that. 
 
@@ -42,12 +42,12 @@ console.log(node.result);
 
 Component callbacks are evaluated **only once** at creation time. Dynamic behavior is accomplished through the use of *Dynamic Values*.
 
-Creating a `Dynamic` is just a matter of calling `dynamic(init)`, and updating them is done by calling `set()`.
+Creating such a dynamic value is just a matter of calling `dynamic(init)`, and updating them is done setting its `current` member
 
 ```javascript
 const x = dynamic(12);
 x.addListener((v)=>console.log(`x is now ${v}`));
-x.set(13);
+x.current = 13;
 ```
 
 Reading from *potentially* dynamic values is done through `valueOf()` and `transform()`.
@@ -56,11 +56,12 @@ Reading from *potentially* dynamic values is done through `valueOf()` and `trans
 import {dynamic, probe, transform} from "@probe/core"
 
 const Add = (x, y) => {
-    console.log(`Values at the time Add was called: ${x.valueOf()}, ${y.valueOf()} )`);
+    const totalNow = x + y;
+    console.log(`Values at the time Add was called: ${x}, ${y}, ${totalNow} )`);
     
     const result = transform(x, y, (vx, vy)=>{
         console.log("recomputing Add result");
-        vx+vy
+        vx + vy
     });
     return result;
 }
@@ -109,7 +110,7 @@ const probe = createProber(intrinsics);
 probe("add", 1, 2);
 
 // You can still probe by function
-probe((x)=>x+4, 4);
+probe((x)=>x + 4, 4);
 ```
 
 N.B. JSX compatibility has a few other steps that are beyond the scope of this specific package. See [@probe/html](http://example.com) for an example of a fully realized JSX binding.
