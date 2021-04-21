@@ -17,7 +17,7 @@ npm i -D @probed/core
 
 ## Getting started
 
-The Probed core is intentionally fairly bare-bones, and this readme speaks only about the general principles at play. If you just want to dive in directly into writing DOM components using JSX, then head over [here](http://example.com).
+The Probed core is intentionally fairly bare-bones, and this readme speaks only about the general principles at play. If you just want to dive in directly into writing DOM components using JSX, then head over [here](http://example.com) (soon!).
 
 ### Components - Basics
 
@@ -113,4 +113,4 @@ probe("add", 1, 2);
 probe((x)=>x + 4, 4);
 ```
 
-N.B. JSX compatibility has a few other steps that are beyond the scope of this specific package. See [@probe/html](http://example.com) for an example of a fully realized JSX binding.
+N.B. JSX compatibility has a few other steps that are beyond the scope of this specific package. See [@probe/html](http://example.com) (soon!) for an example of a fully realized JSX binding.
