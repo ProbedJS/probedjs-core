@@ -5,19 +5,22 @@ on:
     types: [published]
 
 jobs:
-  build:
+    checks:
     runs-on: ubuntu-latest
+
     steps:
+    - name: Cancel Previous Runs
+      uses: styfle/cancel-workflow-action@0.9.0
+      with:
+        access_token: ${{ github.token }}
+
     - uses: actions/checkout@v2
-
-    - name: Make sure versions match
-      run: "[[ \"v$(jq -r .version package.json)\" == \"${{ github.event.release.tag_name }}\" ]]"
-
+    
     - name: Use Node.js 15.x
       uses: actions/setup-node@v2
       with:
         node-version: 15.x
-
+    
     - name: Cache pnpm modules
       uses: actions/cache@v2
       env:
@@ -34,23 +37,62 @@ jobs:
         version: 6.0.2
         run_install: |
           - args: [--frozen-lockfile, --strict-peer-dependencies]
-    
+
     # Checks 
     - name: Lint
       run: pnpm run lint
     
     - name: License check
       run: pnpm run licenseCheck 
-  
+
     # Source Tests 
-    - name: Source tests
+    - name: Unit tests
       env:
         TEST: FULL
+        COVERAGE: 1
       run: pnpm run test:full
 
+    # Save results    
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+  
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Use Node.js 15.x
+      uses: actions/setup-node@v2
+      with:
+        node-version: 15.x
+    
+    - name: Cache pnpm modules
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-pnpm-modules
+      with:
+        path: ~/.pnpm-store
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-15.x-${{ hashFiles('**/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-15.x-
+    
+    - name: Setup PNPM
+      uses: pnpm/action-setup@v2.0.0
+      with:
+        version: 6.0.2
+        run_install: |
+          - args: [--frozen-lockfile, --strict-peer-dependencies]
+  
     # Build
     - name: Build
       run: pnpm run build
+
+    # Sanity Checks
+    - name: Post-build repo check
+      run: git diff --exit-code
 
     - name: Archive Build
       uses: actions/upload-artifact@v2
