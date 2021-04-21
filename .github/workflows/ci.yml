@@ -64,12 +64,18 @@ jobs:
         run_install: |
           - args: [--frozen-lockfile, --strict-peer-dependencies]
     - name: Unit tests
-      run: pnpm run test
+      env:
+        TEST: FULL
+      run: pnpm run test:full
     - name: Build
       run: pnpm run build
     - name: Post-build repo check
       run: git diff --exit-code
-    - name: Archive Build artifacts
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Archive Build
       uses: actions/upload-artifact@v2
       with:
         name: dist

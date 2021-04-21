@@ -53,6 +53,7 @@ export abstract class BaseNode implements IPNode {
     _onDispose?: DisposeOp[];
 
     _buildData?: NodeBuildData;
+    _uniqueNodeId?: number;
 }
 
 export class NodeImpl<T> extends BaseNode {

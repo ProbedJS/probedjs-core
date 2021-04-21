@@ -73,9 +73,10 @@ describe('Dynamic Value', () => {
         const x = dynamic(12);
 
         let y = 0;
-        x.addListener(() => {
+        const listener = () => {
             y += 1;
-        });
+        };
+        x.addListener(listener);
 
         x.current = 23;
         expect(y).toBe(1);
@@ -85,6 +86,17 @@ describe('Dynamic Value', () => {
         x.current = 23;
         expect(y).toBe(1);
         expect(x.valueOf()).toBe(23);
+
+        // Setting a different value triggers notification again.
+        x.current = 24;
+        expect(y).toBe(2);
+        expect(x.valueOf()).toBe(24);
+
+        // Removing the listener cancels notifications.
+        x.removeListener(listener);
+        x.current = 12;
+        expect(y).toBe(2);
+        expect(x.valueOf()).toBe(12);
     });
 
     it('Cleans up correctly', () => {

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { probe, createProber, PNode, useOnDispose } from '../src';
+import { probe, createProber, PNode, useOnDispose, Component } from '../src';
+import { expectThrowInNotProd } from './utils';
 
 describe('Basic prober', () => {
     it('Works with function without arguments', () => {
@@ -36,47 +37,31 @@ describe('Basic prober', () => {
     });
 
     it('Fails when using invalid CB', () => {
-        expect(() => {
-            //@ts-expect-error
-            probe(null);
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => probe(null));
 
-        expect(() => {
-            //@ts-ignore
-            probe(undefined);
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => probe(undefined));
 
-        expect(() => {
-            //@ts-expect-error
-            probe(12);
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => probe(12));
 
-        expect(() => {
-            //@ts-expect-error
-            probe(true);
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => probe(true));
 
-        expect(() => {
-            //@ts-expect-error
-            probe([]);
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => probe([]));
 
-        expect(() => {
-            //@ts-expect-error
-            probe({});
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => probe({}));
     });
 
     it('Fails when using an intrinsic', () => {
-        expect(() => {
-            //@ts-expect-error
-            probe('yo', {});
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => probe('yo', {}));
 
-        expect(() => {
-            //@ts-expect-error
-            probe('', {});
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => probe('', {}));
     });
 });
 
@@ -95,15 +80,17 @@ describe('Prober with intrinsics', () => {
     });
 
     it('Fails when using wrong intrinsic', () => {
-        expect(() => {
-            //@ts-expect-error
-            sutProbe('aab', {});
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => sutProbe('xyz', {}));
 
-        expect(() => {
-            //@ts-expect-error
-            sutProbe('', {});
-        }).toThrow();
+        //@ts-expect-error
+        expectThrowInNotProd(() => sutProbe('aa', {}));
+
+        //@ts-expect-error
+        expectThrowInNotProd(() => sutProbe('aaaa', {}));
+
+        //@ts-expect-error
+        expectThrowInNotProd(() => sutProbe('', {}));
     });
 });
 
@@ -131,6 +118,17 @@ describe('Component With dispose', () => {
     });
 });
 
+describe('Component with no dispose', () => {
+    const component = (x: number) => x * x;
+
+    it('Disposing is harmless', () => {
+        const node = probe(component, 2);
+        expect(node.result).toBe(4);
+
+        node.dispose();
+    });
+});
+
 describe('Hierarchical components', () => {
     const Leaf = () => {
         return 3;
@@ -148,5 +146,71 @@ describe('Hierarchical components', () => {
 
     it('Visited all children', () => {
         expect(probe(Root).result).toBe(9);
+    });
+});
+
+describe('Proxy components', () => {
+    let disposed = 0;
+
+    const Sub = (v: number) => {
+        useOnDispose(() => (disposed += 2));
+        return v * v;
+    };
+
+    const Parent = (v: number) => {
+        useOnDispose(() => (disposed += 3));
+        return probe(Sub, v);
+    };
+
+    const node = probe(Parent, 4);
+    const result = node.result;
+
+    node.dispose();
+
+    it('Produced the correct value', () => {
+        expect(result).toBe(16);
+    });
+
+    it('Disposed correctly', () => {
+        expect(disposed).toBe(5);
+    });
+});
+
+describe('Pre-finalized components', () => {
+    let disposed = 0;
+
+    const Sub = (v: number) => {
+        useOnDispose(() => (disposed += 2));
+        return v * v;
+    };
+
+    const HarmlessSub = (v: number) => {
+        return v * v;
+    };
+
+    const Parent = <T>(v: number, c: Component<[number], T>) => {
+        useOnDispose(() => (disposed += 3));
+        const subNode = probe(c, v);
+        subNode.finalize();
+
+        return subNode;
+    };
+
+    const node = probe(Parent, 4, Sub);
+    const harmlessNode = probe(Parent, 5, HarmlessSub);
+
+    const result = node.result;
+    const harmlessResult = harmlessNode.result;
+
+    node.dispose();
+    harmlessNode.dispose();
+
+    it('Produced the correct value', () => {
+        expect(result).toBe(16);
+        expect(harmlessResult).toBe(25);
+    });
+
+    it('Disposed correctly', () => {
+        expect(disposed).toBe(8);
     });
 });
