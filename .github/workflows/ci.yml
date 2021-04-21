@@ -9,72 +9,80 @@ on:
     - '**.ts'
 
 jobs:
-  lint:
+  check:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [15.x]
 
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Use Node.js 15.x
       uses: actions/setup-node@v2
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 15.x
     - name: Cache pnpm modules
       uses: actions/cache@v2
       env:
         cache-name: cache-pnpm-modules
       with:
         path: ~/.pnpm-store
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-${{ hashFiles('**/package.json') }}
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-15.x-${{ hashFiles('**/package.json') }}
         restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-
+          ${{ runner.os }}-build-${{ env.cache-name }}-15.x-
     - name: Setup PNPM
       uses: pnpm/action-setup@v2.0.0
       with:
         version: 6.0.2
-        run_install: true
-    - run: pnpm run lint
+        run_install: |
+          - args: [--frozen-lockfile, --strict-peer-dependencies]
+    - name: Lint
+      run: pnpm run lint
+    - name: License check
+      run: pnpm run licenseCheck 
   
-  test:
-    needs: lint
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [12.x, 14.x, 15.x]
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v2
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Cache pnpm modules
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-pnpm-modules
-      with:
-        path: ~/.pnpm-store
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-${{ hashFiles('**/package.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-
-    - name: Setup PNPM
-      uses: pnpm/action-setup@v2.0.0
-      with:
-        version: 6.0.2
-        run_install: true
-    - run: pnpm test
-
   build:
-    needs: test
+    needs: check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js 15.x
+      uses: actions/setup-node@v2
+      with:
+        node-version: 15.x
+    - name: Cache pnpm modules
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-pnpm-modules
+      with:
+        path: ~/.pnpm-store
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-15.x-${{ hashFiles('**/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-15.x-
+    - name: Setup PNPM
+      uses: pnpm/action-setup@v2.0.0
+      with:
+        version: 6.0.2
+        run_install: |
+          - args: [--frozen-lockfile, --strict-peer-dependencies]
+    - name: Unit tests
+      run: pnpm run test
+    - name: Build
+      run: pnpm run build
+    - name: Post-build repo check
+      run: git diff --exit-code
+    - name: Archive Build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist
+
+
+  test:
+    needs: build
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [15.x]
+        node-version: [10.x, 12.x, 14.x, 15.x]
 
     steps:
     - uses: actions/checkout@v2
@@ -82,18 +90,16 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
-    - name: Cache pnpm modules
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-pnpm-modules
+    - name: Obtain build
+      uses: actions/download-artifact@v2
       with:
-        path: ~/.pnpm-store
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-${{ hashFiles('**/package.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-
-    - name: Setup PNPM
-      uses: pnpm/action-setup@v2.0.0
-      with:
-        version: 6.0.2
-        run_install: true
-    - run: pnpm run build
+        name: dist
+        path: ./dist
+    - name: Install build
+      working-directory: ./test-dist
+      run: npm install && npm install ../dist
+    - name: Test
+      working-directory: ./test-dist
+      run: npm test
+      
+

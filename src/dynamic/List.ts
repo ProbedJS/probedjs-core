@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,70 +14,61 @@
  * limitations under the License.
  */
 
-import { notify } from '../Notifier';
-import { DynamicBase, ReaderBase } from './Base';
-import { DynamicValue, DynamicValueReader } from './Value';
-
-type ValueType<T> = T extends Array<infer U> ? U : never;
-
-type MapCallback<T, U> = (v: ValueType<T>, index: number, array: T) => U;
+import { DynamicBaseImpl } from './Base';
+import { DynamicValueImpl } from './Value';
+import { ListValueType, DynamicValue, DynamicList } from '../ApiTypes';
 
 interface MapCacheEntry<U> {
-  value: U;
-  index: number;
-  indexProp?: DynamicValue<number>;
+    value: U;
+    index: number;
+    indexProp?: DynamicValue<number>;
 }
 
-export interface DynamicListReader<T> extends DynamicValueReader<T> {
-  /** Obtain the current value of the dynamic */
-  map<U>(cb: MapCallback<T, U>): DynamicList<U[]>;
-}
-
-export class DynamicList<T> extends DynamicBase<T> implements ReaderBase<T> {
-  push(v: ValueType<T>): void {
-    // TODO: push(...items: T[]): number;
-    ((this._value as unknown) as ValueType<T>[]).push(v);
-    if (this._notifier) {
-      notify(this._notifier, this._value);
+export class DynamicListImpl<T extends Array<unknown>> extends DynamicBaseImpl<T> implements DynamicList<T> {
+    push(v: ListValueType<T>): void {
+        this._value.push(v);
+        this.notify();
     }
-  }
 
-  map<U>(cb: MapCallback<T, U>): DynamicList<U[]> {
-    let cache = new Map<ValueType<T>, MapCacheEntry<U>>();
-    const indexSensitive = cb.length >= 2;
+    map<U>(cb: (value: ListValueType<T>, index: number, array: T) => U): DynamicList<U[]> {
+        let cache = new Map<ListValueType<T>, MapCacheEntry<U>>();
+        const indexSensitive = cb.length >= 2;
 
-    const regenerate = (v: ValueType<T>[]): U[] => {
-      const newCache = new Map<ValueType<T>, MapCacheEntry<U>>();
+        const regenerate = (newArray: T): U[] => {
+            const newCache = new Map<ListValueType<T>, MapCacheEntry<U>>();
 
-      const result = v.map((v, i, a) => {
-        const cacheEntry = cache.get(v);
-        if (cacheEntry) {
-          if (indexSensitive && i !== cacheEntry.index) {
-            cacheEntry.indexProp!.set(i);
-          }
-          newCache.set(v, cacheEntry);
-          return cacheEntry.value;
-        }
+            // For loop instead of map, because this is confusing TypeScript.
+            const result: U[] = [];
+            const len = newArray.length;
+            for (let i = 0; i < len; ++i) {
+                const v = newArray[i];
+                const cacheEntry = cache.get(v);
+                if (cacheEntry) {
+                    if (indexSensitive && i !== cacheEntry.index) {
+                        cacheEntry.indexProp!.current = i;
+                    }
+                    newCache.set(v, cacheEntry);
+                    result.push(cacheEntry.value);
+                } else {
+                    const value = cb(v, i, newArray);
+                    let indexProp: DynamicValue<number> | undefined = undefined;
+                    if (indexSensitive) {
+                        indexProp = new DynamicValueImpl<number>(i);
+                    }
+                    newCache.set(v, { value, index: i, indexProp });
+                    result.push(value);
+                }
+            }
 
-        const value = cb(v, i, (a as unknown) as T);
-        let indexProp: DynamicValue<number> | undefined = undefined;
-        if (indexSensitive) {
-          indexProp = new DynamicValue<number>(i);
-        }
-        newCache.set(v, { value, index: i, indexProp });
+            cache = newCache;
+            return result;
+        };
 
-        return value;
-      });
+        const result = new DynamicListImpl<U[]>(regenerate(this.current));
 
-      cache = newCache;
-      return result;
-    };
-
-    const result = new DynamicList<U[]>(regenerate((this.current as unknown) as ValueType<T>[]));
-
-    this.addListener((v) => {
-      result._value = regenerate((v as unknown) as ValueType<T>[]);
-    });
-    return result;
-  }
+        this.addListener((v) => {
+            result._value = regenerate(v);
+        });
+        return result;
+    }
 }

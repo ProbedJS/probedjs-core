@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { probe, createProber, PNode, useOnDispose } from '../src';
+import { probe, createProber, PNode, useOnDispose } from '@probed/core';
 
 describe('Basic prober', () => {
     it('Works with function without arguments', () => {

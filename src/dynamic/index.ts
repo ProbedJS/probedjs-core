@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2021 Francois Chabot
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +14,4 @@
  * limitations under the License.
  */
 
-export { listen } from './operations/Listen';
-export { dependant } from './operations/Dependant';
-export { valType } from './operations/ValType';
-export { dynamic } from './Dynamic';
-export { isDynamic, Reader } from './Reader';
+export { listen, transform, valType, dynamic, isDynamic } from './operations';
