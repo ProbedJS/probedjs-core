@@ -11,7 +11,7 @@
         "ci": "pnpm run lint",
         "tsc": "tsc",
         "lint": "eslint --ext .ts src/",
-        "licenseCheck": "license-checker --onlyAllow ISC;MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD",
+        "licenseCheck": "license-checker --onlyAllow \"ISC;MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD\"",
         "build:clean": "shx rm -rf dist",
         "build:copyapi": "shx cp ./api/api.d.ts ./dist/index.d.ts",
         "build:rollup": "rollup -c",
