@@ -1,0 +1,105 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Make sure versions match
+      run: "[[ \"$(jq -r .version test.json)\" == "${{ github.event.release.tag_name }}" ]]""
+
+    - name: Use Node.js 15.x
+      uses: actions/setup-node@v2
+      with:
+        node-version: 15.x
+
+    - name: Cache pnpm modules
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-pnpm-modules
+      with:
+        path: ~/.pnpm-store
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-15.x-${{ hashFiles('**/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-15.x-
+    
+    - name: Setup PNPM
+      uses: pnpm/action-setup@v2.0.0
+      with:
+        version: 6.0.2
+        run_install: |
+          - args: [--frozen-lockfile, --strict-peer-dependencies]
+    
+    # Checks 
+    - name: Lint
+      run: pnpm run lint
+    
+    - name: License check
+      run: pnpm run licenseCheck 
+  
+    # Source Tests 
+    - name: Unit tests
+      env:
+        TEST: FULL
+      run: pnpm run test:full
+
+    # Build
+    - name: Build
+      run: pnpm run build
+
+    - name: Archive Build
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist
+
+  dist-test:
+    needs: build
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [10.x, 12.x, 14.x, 15.x]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Obtain build
+      uses: actions/download-artifact@v2
+      with:
+        name: dist
+        path: ./dist
+        
+    - name: Install build
+      working-directory: ./test-dist
+      run: npm install && npm install ../dist
+
+    - name: Test
+      working-directory: ./test-dist
+      run: npm test
+
+  # publish:
+  #   - name: Use Node.js 15.x
+  #     uses: actions/setup-node@v2
+  #     with:
+  #       node-version: 15.x
+
+  #   - name: Obtain build
+  #     uses: actions/download-artifact@v2
+  #     with:
+  #       name: dist
+  #       path: .
+
+  #   - run: npm publish --access public
+  #     env:
+  #       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
