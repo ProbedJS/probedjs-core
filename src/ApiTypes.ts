@@ -48,6 +48,9 @@ export interface DynamicReaderBase<T> {
     removeListener(lst: (v: T) => void): void;
 
     readonly current: T;
+
+    /** gets string representation */
+    toString(): string;
 }
 
 /** Consumer API for a dynamic primitive. */
