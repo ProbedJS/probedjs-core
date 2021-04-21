@@ -1,7 +1,7 @@
 {
     "name": "@probed/core",
     "description": "A single-pass JSX-friendly dynamic tree backend.",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "type": "module",
     "main": "dist/cjs/probe-core.js",
     "module": "dist/esm/probe-core.js",
