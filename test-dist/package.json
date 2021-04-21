@@ -1,5 +1,4 @@
 {
-    "type": "module",
     "scripts": {
         "test": "jest --verbose"
     },
@@ -9,9 +8,19 @@
     },
     "license": "Apache-2.0",
     "dependencies": {
-        "ts-jest": "^26.5.5",
-        "typescript": "^4.2.4",
+        "@probed/core": "file:../dist",
+        "@types/jest": "^26.0.22",
         "jest": "^26.6.3",
-        "@types/jest": "^26.0.22"
+        "ts-jest": "^26.5.5",
+        "typescript": "^4.2.4"
+    },
+    "jest": {
+        "preset": "ts-jest",
+        "testEnvironment": "node",
+        "transform": {
+            "^.+\\.ts?$": "ts-jest"
+        },
+        "testRegex": "(/__tests__/.*|(\\.|/)(disttest))\\.ts?$",
+        "moduleFileExtensions": ["js", "ts"]
     }
 }
