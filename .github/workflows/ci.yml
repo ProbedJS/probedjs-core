@@ -90,28 +90,16 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
-    - name: Cache pnpm modules
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-pnpm-modules
-      with:
-        path: ~/.pnpm-store
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-${{ hashFiles('**/package.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-
     - name: Obtain build
       uses: actions/download-artifact@v2
       with:
         name: dist
         path: ./dist
-    - name: Setup PNPM
-      uses: pnpm/action-setup@v2.0.0
-      with:
-        version: 6.0.2
-        run_install: |
-          - cwd: ./test-dist
+    - name: Install build
+      working-directory: ./test-dist
+      run: npm install && npm install ../dist
     - name: Test
       working-directory: ./test-dist
-      run: pnpm test
+      run: npm test
       
 
