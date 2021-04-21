@@ -133,6 +133,19 @@ describe('Dynamic Value', () => {
         expect(b).toBe(2);
         expect(c).toBe(2);
     });
+
+    it('stringizes correctly', () => {
+        const x = dynamic(12);
+        expect(`${x}`).toBe('12');
+        expect(`` + x).toBe('12');
+    });
+
+    it('valueof works', () => {
+        const x = dynamic(12) as any;
+        const y = x + 12;
+
+        expect(y).toBe(24);
+    });
 });
 
 describe('Dependant value', () => {

@@ -55,6 +55,10 @@ export class DynamicBaseImpl<T> implements DynamicBase<T> {
         }
     }
 
+    toString(): string {
+        return `${this._value}`;
+    }
+
     addListener(lst: (v: T) => void): void {
         if (!this._notifier) {
             this._notifier = [];
