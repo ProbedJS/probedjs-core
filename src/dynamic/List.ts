@@ -15,14 +15,7 @@
  */
 
 import { DynamicBaseImpl } from './Base';
-import { DynamicValueImpl } from './Value';
-import { ListValueType, DynamicValue, DynamicList } from '../ApiTypes';
-
-interface MapCacheEntry<U> {
-    value: U;
-    index: number;
-    indexProp?: DynamicValue<number>;
-}
+import { ListValueType, DynamicList } from '../ApiTypes';
 
 export class DynamicListImpl<T extends Array<unknown>> extends DynamicBaseImpl<T> implements DynamicList<T> {
     push(v: ListValueType<T>): void {
@@ -31,36 +24,13 @@ export class DynamicListImpl<T extends Array<unknown>> extends DynamicBaseImpl<T
     }
 
     map<U>(cb: (value: ListValueType<T>, index: number, array: T) => U): DynamicList<U[]> {
-        let cache = new Map<ListValueType<T>, MapCacheEntry<U>>();
-        const indexSensitive = cb.length >= 2;
-
         const regenerate = (newArray: T): U[] => {
-            const newCache = new Map<ListValueType<T>, MapCacheEntry<U>>();
-
             // For loop instead of map, because this is confusing TypeScript.
             const result: U[] = [];
             const len = newArray.length;
             for (let i = 0; i < len; ++i) {
-                const v = newArray[i];
-                const cacheEntry = cache.get(v);
-                if (cacheEntry) {
-                    if (indexSensitive && i !== cacheEntry.index) {
-                        cacheEntry.indexProp!.current = i;
-                    }
-                    newCache.set(v, cacheEntry);
-                    result.push(cacheEntry.value);
-                } else {
-                    const value = cb(v, i, newArray);
-                    let indexProp: DynamicValue<number> | undefined = undefined;
-                    if (indexSensitive) {
-                        indexProp = new DynamicValueImpl<number>(i);
-                    }
-                    newCache.set(v, { value, index: i, indexProp });
-                    result.push(value);
-                }
+                result.push(cb(newArray[i], i, newArray));
             }
-
-            cache = newCache;
             return result;
         };
 
