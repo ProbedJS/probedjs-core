@@ -9,7 +9,7 @@ const baseConfig = {
 };
 
 const fullConfig = {
-    collectCoverage: true,
+    collectCoverage: !!process.env.COVERAGE,
     coverageDirectory: './coverage',
     coverageThreshold: {
         global: {

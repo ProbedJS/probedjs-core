@@ -8,6 +8,7 @@
     "unpkg": "dist/umd/probe-core.es6.js",
     "scripts": {
         "test:full": "set TEST=FULL&& jest",
+        "test:coverage": "set TEST=FULL&& set COVERAGE=1&& jest",
         "test:quick": "jest",
         "test:watch": "jest --watch",
         "test": "pnpm run test:quick",
