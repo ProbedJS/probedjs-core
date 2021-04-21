@@ -7,7 +7,10 @@
     "module": "dist/esm/probe-core.js",
     "unpkg": "dist/umd/probe-core.es6.js",
     "scripts": {
-        "test": "jest --verbose",
+        "test:full": "jest --config ./tests/jest.config.full.js",
+        "test:quick": "jest --config ./tests/jest.config.quick.js",
+        "test:watch": "jest --watch --config ./tests/jest.config.quick.js",
+        "test": "pnpm run test:quick",
         "ci": "pnpm run lint",
         "tsc": "tsc",
         "lint": "eslint --ext .ts src/",

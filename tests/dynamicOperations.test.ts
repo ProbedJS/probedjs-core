@@ -16,7 +16,7 @@
 
 import { DisposeOp, popEnv, pushEnv } from '../src/Environment';
 
-import { dynamic, isDynamic } from '../src';
+import { dynamic, listen, valType } from '../src';
 
 let disposeQueue: DisposeOp[] = [];
 const cleanup = () => {
@@ -35,30 +35,35 @@ afterEach(() => {
     popEnv();
 });
 
-describe('Static array', () => {
-    it('is not seen as dynamic', () => {
-        expect(isDynamic([])).toBeFalsy();
-        expect(isDynamic([12])).toBeFalsy();
+describe('listen', () => {
+    it('Works on regular values', () => {
+        let y = 0;
+        const cb = (v: number) => (y += v);
+        const v = 12;
+        listen(v, cb);
+        expect(y).toBe(12);
+    });
+
+    it('Works on dynamic values', () => {
+        let y = 0;
+        const cb = (v: number) => (y += v);
+        const v = dynamic(12);
+        listen(v, cb);
+        expect(y).toBe(12);
+
+        v.current = 13;
+        expect(y).toBe(25);
     });
 });
 
-describe('Dynamic Array', () => {
-    it('Initialized correctly', () => {
-        const x = dynamic([1, 2]);
-        expect(x.current).toEqual([1, 2]);
+describe('valType', () => {
+    it('Works on regular values', () => {
+        const v = 0;
+        expect(valType(v)).toBe('number');
     });
 
-    it('Can Be Mapped', () => {
-        const x = dynamic([1, 2, 3]);
-        const y = x.map((x: number): number => x * x);
-
-        expect(y.current).toEqual([1, 4, 9]);
-
-        x.push(4);
-        expect(y.current).toEqual([1, 4, 9, 16]);
-
-        x.current = [2, 2, 2];
-        expect(y.current).toEqual([4, 4, 4]);
+    it('Works on dynamic values', () => {
+        const v = dynamic(0);
+        expect(valType(v)).toBe('number');
     });
-
 });

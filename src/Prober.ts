@@ -6,16 +6,29 @@ const isIntrinsic = <I>(cb: keyof I | ((...args: any[]) => any)): cb is keyof I 
     return typeof cb === 'string';
 };
 
+const addToDisposeQueue = (node: BaseNode, ops: DisposeOp[]) => {
+    if (!node._onDispose) {
+        node._onDispose = ops;
+    } else {
+        node._onDispose = node._onDispose.concat(ops);
+    }
+};
+
+let _NextUniqueNodeId = 0;
+
 class Prober<I extends Intrinsics<I>> implements IProber {
     private _intrinsics: I;
     private _queueHead?: BaseNode;
     private _insert?: BaseNode;
-    private _end?: BaseNode;
-
     private _insertStack: (BaseNode | undefined)[] = [];
-    private _endStack: (BaseNode | undefined)[] = [];
 
+    private _end?: BaseNode;
     private _pendingOnDispose: DisposeOp[] = [];
+    private _finalizeStack: {
+        _end: BaseNode | undefined;
+        _pendingOnDispose: DisposeOp[];
+    }[] = [];
+
     _onDispose(op: DisposeOp): void {
         this._pendingOnDispose.push(op);
     }
@@ -38,6 +51,10 @@ class Prober<I extends Intrinsics<I>> implements IProber {
         }
 
         const newNode = new NodeImpl<UnwrapPNode<T>>();
+        if (process.env.NODE_ENV !== 'production') {
+            newNode._uniqueNodeId = _NextUniqueNodeId++;
+        }
+
         const _cb = this._getCb(what);
         let _next: IPNode | undefined;
 
@@ -62,15 +79,14 @@ class Prober<I extends Intrinsics<I>> implements IProber {
     _finalize(target: IPNode): void {
         // This can be called recursively,
         pushEnv(this);
-        this._endStack.push(this._end);
-
-        // We need to loop until target and any node probed while compiling target have been finalized.
-        // this._end will be updated accordingly inside of announce()
+        this._finalizeStack.push({ _end: this._end, _pendingOnDispose: this._pendingOnDispose });
+        this._pendingOnDispose = [];
         this._end = target;
 
         let currentNode: BaseNode;
         do {
             currentNode = this._queueHead!;
+            this._queueHead = currentNode._buildData!._next;
 
             // If a component returns a Node (as opposed to a value), then we short-circuit to the parent.
             let destinationNode = currentNode;
@@ -86,7 +102,12 @@ class Prober<I extends Intrinsics<I>> implements IProber {
 
             if (isPNode(cbResult)) {
                 if (cbResult.finalized) {
+                    // Post-ex-facto proxying.
                     destinationNode._result = cbResult._result;
+                    if (cbResult._onDispose) {
+                        addToDisposeQueue(destinationNode, cbResult._onDispose);
+                        cbResult._onDispose = [];
+                    }
                 } else {
                     cbResult._buildData!._resolveAs = destinationNode;
                 }
@@ -95,21 +116,17 @@ class Prober<I extends Intrinsics<I>> implements IProber {
             }
 
             if (this._pendingOnDispose.length > 0) {
-                if (!destinationNode._onDispose) {
-                    destinationNode._onDispose = this._pendingOnDispose;
-                } else {
-                    destinationNode._onDispose = destinationNode._onDispose.concat(this._pendingOnDispose);
-                }
-
+                addToDisposeQueue(destinationNode, this._pendingOnDispose);
                 this._pendingOnDispose = [];
             }
 
-            this._queueHead = currentNode._buildData!._next;
             currentNode._buildData = undefined;
             this._insert = this._insertStack.pop();
-        } while (currentNode !== this._end);
+        } while (currentNode !== this._end && this._queueHead);
 
-        this._end = this._endStack.pop();
+        const finalizePop = this._finalizeStack.pop()!;
+        this._end = finalizePop._end;
+        this._pendingOnDispose = finalizePop._pendingOnDispose;
         popEnv();
     }
 
