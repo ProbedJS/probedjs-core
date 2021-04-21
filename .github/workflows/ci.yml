@@ -73,7 +73,7 @@ jobs:
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Archive Build artifacts
+    - name: Archive Build
       uses: actions/upload-artifact@v2
       with:
         name: dist
