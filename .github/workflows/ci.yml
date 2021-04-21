@@ -4,9 +4,12 @@ on:
   push:
     paths:
     - '**.ts'
+    - '.github/workflows/**'
+
   pull_request:
     paths:
     - '**.ts'
+    - '.github/workflows/**'
 
 jobs:
   check:
