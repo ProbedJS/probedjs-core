@@ -31,7 +31,8 @@ jobs:
       uses: pnpm/action-setup@v2.0.0
       with:
         version: 6.0.2
-        run_install: true
+        run_install: |
+          - args: [--frozen-lockfile, --strict-peer-dependencies]
     - name: Lint
       run: pnpm run lint
     - name: License check
@@ -60,7 +61,8 @@ jobs:
       uses: pnpm/action-setup@v2.0.0
       with:
         version: 6.0.2
-        run_install: true
+        run_install: |
+          - args: [--frozen-lockfile, --strict-peer-dependencies]
     - name: Unit tests
       run: pnpm run test
     - name: Build
@@ -105,8 +107,8 @@ jobs:
       uses: pnpm/action-setup@v2.0.0
       with:
         version: 6.0.2
-        run_install:
-          cwd: ./test-dist
+        run_install: |
+          - cwd: ./test-dist
     - name: Test
       working-directory: ./test-dist
       run: pnpm test
