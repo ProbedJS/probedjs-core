@@ -102,11 +102,11 @@ jobs:
       with:
         name: dist
     - name: Setup PNPM
-      working-directory: ./test-dist
       uses: pnpm/action-setup@v2.0.0
       with:
         version: 6.0.2
-        run_install: true
+        run_install:
+          cwd: ./test-dist
     - name: Test
       working-directory: ./test-dist
       run: pnpm test
