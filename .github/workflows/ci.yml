@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: ProbedJS/actions.fetch-and-init@v1
+    - uses: ProbedJS/actions/fetch-and-init@v1
     - name: Lint
       run: pnpm run lint
     - name: License check
