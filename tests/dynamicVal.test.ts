@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-import { DisposeOp, pop as popContext, push as pushContext } from '../src/Environment';
-
-import { dependant, dynamic, isDynamic } from '../src';
-import { Dynamic       ValueReader } from '../src/dynamic/Value';
+import { DisposeOp, popEnv, pushEnv } from '../src/Environment';
+import { transform, dynamic, isDynamic } from '../src';
 
 let disposeQueue: DisposeOp[] = [];
 const cleanup = () => {
@@ -26,14 +24,14 @@ const cleanup = () => {
 };
 
 beforeEach(() => {
-    pushContext({
+    pushEnv({
         _onDispose: (op: DisposeOp) => disposeQueue.push(op),
     });
 });
 
 afterEach(() => {
     cleanup();
-    popContext();
+    popEnv();
 });
 
 describe('Static Value', () => {
@@ -67,7 +65,7 @@ describe('Dynamic Value', () => {
         const x = dynamic(12);
         expect(x.valueOf()).toBe(12);
 
-        x.set(23);
+        x.current = 23;
         expect(x.valueOf()).toBe(23);
     });
 
@@ -79,12 +77,12 @@ describe('Dynamic Value', () => {
             y += 1;
         });
 
-        x.set(23);
+        x.current = 23;
         expect(y).toBe(1);
         expect(x.valueOf()).toBe(23);
 
         // Setting to same value should not trigger notification.
-        x.set(23);
+        x.current = 23;
         expect(y).toBe(1);
         expect(x.valueOf()).toBe(23);
     });
@@ -107,18 +105,18 @@ describe('Dynamic Value', () => {
             c += 1;
         });
 
-        x.set(13);
+        x.current = 13;
         expect(a).toBe(1);
         expect(b).toBe(1);
         expect(c).toBe(1);
 
-        x.set(14);
+        x.current = 14;
         expect(a).toBe(2);
         expect(b).toBe(2);
         expect(c).toBe(2);
 
         cleanup();
-        x.set(15);
+        x.current = 15;
         expect(a).toBe(2);
         expect(b).toBe(2);
         expect(c).toBe(2);
@@ -127,13 +125,13 @@ describe('Dynamic Value', () => {
 
 describe('Dependant value', () => {
     it('recognizes values', () => {
-        const y: number = dependant(12, (x) => x + x);
+        const y: number = transform(12, (x) => x + x);
         expect(y).toBe(24);
     });
 
     it('recognizes dynamics', () => {
         const v = dynamic(12);
-        const y: DynamicValueReader<number> = dependant(v, (x) => x + x);
+        const y = transform(v, (x) => x + x);
         expect(y.current).toBe(24);
 
         v.current = 13;

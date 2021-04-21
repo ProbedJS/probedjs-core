@@ -14,22 +14,31 @@
  * limitations under the License.
  */
 
+import { IPNode } from './ApiTypes';
 import { DisposeOp } from './Environment';
-import { NodeBuildData } from './Prober';
 
 export interface IProber {
     _finalize(target: IPNode): void;
 }
 
-export abstract class IPNode {
+export interface NodeBuildData {
+    _cb: (...arg: any[]) => any;
+    _args: any[];
+
+    _next?: IPNode;
+    _resolveAs?: IPNode;
+    _prober: IProber;
+}
+
+export abstract class BaseNode implements IPNode {
+    get finalized(): boolean {
+        return !this._buildData;
+    }
+
     finalize(): void {
         if (this._buildData) {
             this._buildData._prober._finalize(this);
         }
-    }
-
-    get finalized(): boolean {
-        return !this._buildData;
     }
 
     dispose(): void {
@@ -46,7 +55,7 @@ export abstract class IPNode {
     _buildData?: NodeBuildData;
 }
 
-export class PNode<T> extends IPNode {
+export class NodeImpl<T> extends BaseNode {
     get result(): T {
         this.finalize();
         return this._result!;
@@ -55,19 +64,10 @@ export class PNode<T> extends IPNode {
     _result?: T;
     _probed_pnodetype?: number;
 }
-PNode.prototype._probed_pnodetype = 1;
+NodeImpl.prototype._probed_pnodetype = 1;
 
-export const onDispose = (node: IPNode, lst: DisposeOp): void => {
-    if (!node._onDispose) {
-        node._onDispose = [];
-    }
+export type UnwrapPNode<T> = T extends NodeImpl<infer U> ? U : T;
 
-    node._onDispose!.push(lst);
-};
-
-export type AsPNode<T> = T extends PNode<infer U> ? PNode<U> : PNode<T>;
-export type UnwrapPNode<T> = T extends PNode<infer U> ? U : T;
-
-export const isPNode = (what: unknown): what is IPNode => {
-    return what !== null && typeof what === 'object' && !!(what as IPNode)._probed_pnodetype;
+export const isPNode = (what: unknown): what is BaseNode => {
+    return what !== null && typeof what === 'object' && !!(what as BaseNode)._probed_pnodetype;
 };

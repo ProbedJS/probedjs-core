@@ -14,8 +14,4 @@
  * limitations under the License.
  */
 
-export { listen } from './operations/Listen';
-export { dependant } from './operations/Dependant';
-export { valType } from './operations/ValType';
-export { dynamic } from './Dynamic';
-export { isDynamic, Reader } from './Reader';
+export { listen, transform, valType, dynamic, isDynamic } from './operations';

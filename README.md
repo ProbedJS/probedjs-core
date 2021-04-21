@@ -38,23 +38,23 @@ console.log(node.result);
 
 Component callbacks are evaluated **only once** at creation time. Dynamic behavior is accomplished through the use of *Dynamic Values*.
 
-Creating a `Dynamic` is just a matter of calling `dynamic(init)`, and updating them is done by changing their `value` property.
+Creating a `Dynamic` is just a matter of calling `dynamic(init)`, and updating them is done by calling `set()`.
 
 ```javascript
 const x = dynamic(12);
 x.addListener((v)=>console.log(`x is now ${v}`));
-x.value = 13;
+x.set(13);
 ```
 
-Reading from *potentially* dynamic values is done through `valueOf()` and `dependant()`.
+Reading from *potentially* dynamic values is done through `valueOf()` and `transform()`.
 
 ```javascript
-import {dynamic, probe} from "@probe/core"
+import {dynamic, probe, transform} from "@probe/core"
 
 const Add = (x, y) => {
     console.log(`Values at the time Add was called: ${x.valueOf()}, ${y.valueOf()} )`);
     
-    const result = dependant(x, y, (vx, vy)=>{
+    const result = transform(x, y, (vx, vy)=>{
         console.log("recomputing Add result");
         vx+vy
     });

@@ -15,28 +15,28 @@
  */
 
 export type DisposeOp = () => void;
-export interface Context {
+export interface Environment {
     _onDispose: (op: DisposeOp) => void;
 }
 
-let _currentEnv: Context | null = null;
-const _envStack: (Context | null)[] = [];
+let _currentEnv: Environment | null = null;
+const _envStack: (Environment | null)[] = [];
 
-export const push = (ctx: Context): void => {
+export const pushEnv = (ctx: Environment): void => {
     _envStack.push(_currentEnv);
     _currentEnv = ctx;
 };
 
-export const pop = (): void => {
+export const popEnv = (): void => {
     if (process.env.NODE_ENV !== 'production' && _envStack.length === 0) {
-        throw new Error('Context underflow');
+        throw new Error('Environment underflow');
     }
     _currentEnv = _envStack.pop()!;
 };
 
-export const onDispose = (op: DisposeOp): void => {
+export const useOnDispose = (op: DisposeOp): void => {
     if (process.env.NODE_ENV !== 'production' && !_currentEnv) {
-        throw new Error('Context underflow');
+        throw new Error('Environment underflow');
     }
 
     _currentEnv!._onDispose(op);

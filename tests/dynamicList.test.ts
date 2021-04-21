@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { DisposeOp, pop as popContext, push as pushContext } from '../src/Environment';
+import { DisposeOp, popEnv, pushEnv } from '../src/Environment';
 
 import { dynamic, isDynamic } from '../src';
 
@@ -25,14 +25,14 @@ const cleanup = () => {
 };
 
 beforeEach(() => {
-    pushContext({
+    pushEnv({
         _onDispose: (op: DisposeOp) => disposeQueue.push(op),
     });
 });
 
 afterEach(() => {
     cleanup();
-    popContext();
+    popEnv();
 });
 
 describe('Static array', () => {

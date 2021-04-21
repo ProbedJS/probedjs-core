@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 
-import { onDispose } from '../Environment';
-import { Notifier, notify, removeListener } from '../Notifier';
+import { DynamicBase } from '../ApiTypes';
+import { useOnDispose } from '../Environment';
 
-export interface ReaderBase<T> {
-    addListener(lst: (v: T) => void): void;
-    removeListener(lst: (v: T) => void): void;
+type Listener<T> = (v: T) => void;
+type Notifier<T> = Listener<T>[];
 
-    current: T;
+export const notify = <T>(notifier: Notifier<T>, v: T): void => {
+    let len = notifier.length;
+    while (len--) {
+        notifier[len](v);
+    }
+};
 
-    _probed_dyntype?: number;
-}
+export const removeListener = <T>(notifier: Notifier<T>, lst: Listener<T>): void => {
+    notifier.splice(notifier.indexOf(lst), 1);
+};
 
-export class DynamicBase<T> implements ReaderBase<T> {
+export class DynamicBaseImpl<T> implements DynamicBase<T> {
     protected _value: T;
     protected _notifier?: Notifier<T>;
 
@@ -45,8 +50,8 @@ export class DynamicBase<T> implements ReaderBase<T> {
     set(v: T): void {
         const notif = this._value !== v;
         this._value = v;
-        if (notif && this._notifier) {
-            notify(this._notifier, v);
+        if (notif) {
+            this.notify();
         }
     }
 
@@ -56,10 +61,10 @@ export class DynamicBase<T> implements ReaderBase<T> {
         }
         this._notifier.push(lst);
 
-        onDispose(() => {
+        useOnDispose(() => {
             removeListener(this._notifier!, lst);
             if (this._notifier!.length === 0) {
-                delete this._notifier;
+                this._notifier = undefined;
             }
         });
     }
@@ -68,6 +73,12 @@ export class DynamicBase<T> implements ReaderBase<T> {
         removeListener(this._notifier!, lst);
     }
 
+    notify(): void {
+        if (this._notifier) {
+            notify(this._notifier, this._value);
+        }
+    }
+
     _probed_dyntype?: number; // Will be set in the prototype.
 }
-DynamicBase.prototype._probed_dyntype = 1;
+DynamicBaseImpl.prototype._probed_dyntype = 1;

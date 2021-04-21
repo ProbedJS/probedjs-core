@@ -9,37 +9,73 @@ on:
     - '**.ts'
 
 jobs:
-  lint:
+  check:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [15.x]
 
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Use Node.js 15.x
       uses: actions/setup-node@v2
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 15.x
     - name: Cache pnpm modules
       uses: actions/cache@v2
       env:
         cache-name: cache-pnpm-modules
       with:
         path: ~/.pnpm-store
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-${{ hashFiles('**/package.json') }}
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-15.x-${{ hashFiles('**/package.json') }}
         restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-
+          ${{ runner.os }}-build-${{ env.cache-name }}-15.x-
     - name: Setup PNPM
       uses: pnpm/action-setup@v2.0.0
       with:
         version: 6.0.2
         run_install: true
-    - run: pnpm run lint
+    - name: Lint
+      run: pnpm run lint
+    - name: License check
+      run: pnpm run licenseCheck 
   
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js 15.x
+      uses: actions/setup-node@v2
+      with:
+        node-version: 15.x
+    - name: Cache pnpm modules
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-pnpm-modules
+      with:
+        path: ~/.pnpm-store
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-15.x-${{ hashFiles('**/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-15.x-
+    - name: Setup PNPM
+      uses: pnpm/action-setup@v2.0.0
+      with:
+        version: 6.0.2
+        run_install: true
+    - name: Unit tests
+      run: pnpm run test
+    - name: Build
+      run: pnpm run build
+    - name: Post-build repo check
+      run: git diff --exit-code
+    - name: Archive Build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist
+
+
   test:
-    needs: lint
+    needs: build
     runs-on: ubuntu-latest
 
     strategy:
@@ -61,39 +97,18 @@ jobs:
         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-${{ hashFiles('**/package.json') }}
         restore-keys: |
           ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-
+    - name: Obtain build
+      uses: actions/download-artifact@v2
+      with:
+        name: dist
     - name: Setup PNPM
+      working-directory: ./test-dist
       uses: pnpm/action-setup@v2.0.0
       with:
         version: 6.0.2
         run_install: true
-    - run: pnpm test
+    - name: Test
+      working-directory: ./test-dist
+      run: pnpm test
+      
 
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [15.x]
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v2
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Cache pnpm modules
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-pnpm-modules
-      with:
-        path: ~/.pnpm-store
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-${{ hashFiles('**/package.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-${{ matrix.node-version }}-
-    - name: Setup PNPM
-      uses: pnpm/action-setup@v2.0.0
-      with:
-        version: 6.0.2
-        run_install: true
-    - run: pnpm run build

@@ -4,6 +4,6 @@ export default {
     transform: {
         '^.+\\.ts?$': 'ts-jest',
     },
-    testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.ts?$',
+    testRegex: '(/__tests__/.*|(\\.|/)(disttest))\\.ts?$',
     moduleFileExtensions: ['js', 'ts'],
 };

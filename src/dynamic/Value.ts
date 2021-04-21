@@ -13,14 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { DynamicBase, ReaderBase } from './Base';
+import { DynamicValue } from '../ApiTypes';
+import { DynamicBaseImpl } from './Base';
 
-export interface DynamicValueReader<T> extends ReaderBase<T> {
-    /** Will be invoked whenever the value changes. */
-    valueOf: () => T;
-}
-
-export class DynamicValue<T> extends DynamicBase<T> implements DynamicValueReader<T> {
+export class DynamicValueImpl<T> extends DynamicBaseImpl<T> implements DynamicValue<T> {
     valueOf(): T {
         return this._value;
     }

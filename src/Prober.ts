@@ -1,94 +1,32 @@
-/*
- * Copyright 2021 Francois Chabot
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+import { DisposeOp, popEnv, pushEnv } from './Environment';
+import { IPNode, AsPNode, Component, Intrinsics, ProbedParams, ProbedResult, ProbingFunction } from './ApiTypes';
+import { IProber, BaseNode, NodeImpl, UnwrapPNode, isPNode } from './Node';
 
-import { DisposeOp, pop as popContext, push as pushContext } from './Environment';
-import { AsPNode, UnwrapPNode, PNode, IPNode, IProber, isPNode } from './Node';
-
-export interface NodeBuildData {
-    _cb: (...arg: any[]) => any;
-    _args: any[];
-
-    _next?: IPNode;
-    _resolveAs?: IPNode;
-    _prober: IProber;
-}
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-type Component<ArgsT extends any[] = any[], RetT = any> = (...arg: ArgsT) => RetT;
-
-/** Used to Contrain a type to ensure that all its keys map are components */
-type IntrinsicMap<MapT> = {
-    [P in keyof MapT]: Component;
+const isIntrinsic = <I>(cb: keyof I | ((...args: any[]) => any)): cb is keyof I => {
+    return typeof cb === 'string';
 };
 
-type IntrinsicParams<Intrinsics extends IntrinsicMap<Intrinsics>, K extends keyof Intrinsics> = Parameters<
-    Intrinsics[K]
->;
-type IntrinsicResult<Intrinsics extends IntrinsicMap<Intrinsics>, K extends keyof Intrinsics> = ReturnType<
-    Intrinsics[K]
->;
+class Prober<I extends Intrinsics<I>> implements IProber {
+    private _intrinsics: I;
+    private _queueHead?: BaseNode;
+    private _insert?: BaseNode;
+    private _end?: BaseNode;
 
-type Probed<MapT> = keyof MapT | Component;
-
-export type ProbedParams<
-    Intrinsics extends IntrinsicMap<Intrinsics>,
-    ProbedT extends Probed<Intrinsics>
-> = ProbedT extends keyof Intrinsics
-    ? IntrinsicParams<Intrinsics, ProbedT> // It's a valid primitive key
-    : ProbedT extends Component<infer T, any>
-    ? T // It's a valid callable that returns a U
-    : never;
-
-export type ProbedResult<
-    Intrinsics extends IntrinsicMap<Intrinsics>,
-    ProbedT extends Probed<Intrinsics>
-> = ProbedT extends keyof Intrinsics
-    ? IntrinsicResult<Intrinsics, ProbedT> // It's a valid primitive key
-    : ProbedT extends Component<any[], infer T>
-    ? T // It's a valid callable that returns a U
-    : never;
-
-const isIntrinsic = <Intrinsics>(what: Probed<Intrinsics>): what is keyof Intrinsics => {
-    return typeof what === 'string';
-};
-
-class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
-    private _intrinsics: Intrinsics;
-    private _queueHead?: IPNode;
-    private _insert?: IPNode;
-    private _end?: IPNode;
-
-    private _insertStack: (IPNode | undefined)[] = [];
-    private _endStack: (IPNode | undefined)[] = [];
+    private _insertStack: (BaseNode | undefined)[] = [];
+    private _endStack: (BaseNode | undefined)[] = [];
 
     private _pendingOnDispose: DisposeOp[] = [];
     _onDispose(op: DisposeOp): void {
         this._pendingOnDispose.push(op);
     }
 
-    constructor(intrinsics: Intrinsics) {
+    constructor(intrinsics: I) {
         this._intrinsics = intrinsics;
     }
 
-    _announce<T extends keyof Intrinsics | Component>(
-        what: T,
-        ..._args: ProbedParams<Intrinsics, T>
-    ): AsPNode<ProbedResult<Intrinsics, T>> {
+    _announce<T extends keyof I | Component>(what: T, ..._args: ProbedParams<T, I>): AsPNode<ProbedResult<T, I>> {
         if (process.env.NODE_ENV !== 'production') {
-            if (isIntrinsic<Intrinsics>(what)) {
+            if (isIntrinsic<I>(what)) {
                 if (!this._intrinsics[what]) {
                     throw Error(`"${what}" is not a registered intrinsic in this Prober`);
                 }
@@ -99,7 +37,7 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
             }
         }
 
-        const newNode = new PNode<UnwrapPNode<T>>();
+        const newNode = new NodeImpl<UnwrapPNode<T>>();
         const _cb = this._getCb(what);
         let _next: IPNode | undefined;
 
@@ -118,19 +56,19 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
 
         newNode._buildData = { _cb, _prober: this, _args, _next };
 
-        return newNode as AsPNode<ProbedResult<Intrinsics, T>>;
+        return newNode as AsPNode<ProbedResult<T, I>>;
     }
 
     _finalize(target: IPNode): void {
         // This can be called recursively,
-        pushContext(this);
+        pushEnv(this);
         this._endStack.push(this._end);
 
         // We need to loop until target and any node probed while compiling target have been finalized.
         // this._end will be updated accordingly inside of announce()
         this._end = target;
 
-        let currentNode: IPNode;
+        let currentNode: BaseNode;
         do {
             currentNode = this._queueHead!;
 
@@ -172,11 +110,11 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
         } while (currentNode !== this._end);
 
         this._end = this._endStack.pop();
-        popContext();
+        popEnv();
     }
 
-    private _getCb<T extends keyof Intrinsics | Component>(what: T): Component {
-        if (isIntrinsic<Intrinsics>(what)) {
+    private _getCb<T extends keyof I | Component>(what: T): Component {
+        if (isIntrinsic<I>(what)) {
             return this._intrinsics[what];
         } else {
             return what as Component;
@@ -184,24 +122,13 @@ class Prober<Intrinsics extends IntrinsicMap<Intrinsics>> implements IProber {
     }
 }
 
-/** Creates a probing function. It accepts a mapping of strings to components. */
-export const createProber = <Intrinsics extends IntrinsicMap<Intrinsics>>(
-    intrinsics: Intrinsics,
-): (<T extends keyof Intrinsics | ((...args: any[]) => any)>(
-    what: T,
-    ...args: ProbedParams<Intrinsics, T>
-) => AsPNode<ProbedResult<Intrinsics, T>>) => {
-    const result = new Prober(intrinsics);
+export function createProber<I extends Intrinsics<I>>(intrinsics: I): ProbingFunction<I> {
+    const newProber = new Prober(intrinsics);
 
-    /** Probes a component, initiating a probing process if needed. If you need to access the resulting node's
-     *  content, use rootProbe() instead.
-     *
-     * @param what The component to probe. Either an intrinsic's name, or a function.
-     * @param args The arguments to pass to the component at creation time.
-     * @returns An IPNode that will be processed by the time the current probing process completes.
-     */
-    const probe = <T extends keyof Intrinsics | Component>(what: T, ...args: ProbedParams<Intrinsics, T>) =>
-        result._announce(what, ...args);
+    const probe = <T extends keyof Intrinsics<I> | Component>(what: T, ...args: ProbedParams<T, I>) =>
+        newProber._announce(what, ...args);
 
     return probe;
-};
+}
+
+export const probe = createProber({});
