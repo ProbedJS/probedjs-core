@@ -2,6 +2,10 @@
 
 Core functionality for the probed system
 
+[![npm](https://img.shields.io/npm/v/@probed/core.svg)](http://npm.im/@probed/core)
+[![gzip size](http://img.badgesize.io/https://unpkg.com/@probed/core?compression=gzip&label=gzip)](https://unpkg.com/@probed/core)
+[![brotli size](http://img.badgesize.io/https://unpkg.com/@probed/core?compression=brotli&label=brotli)](https://unpkg.com/@probed/core)
+
 [![CI](https://github.com/ProbedJS/probedjs-core/actions/workflows/ci.yml/badge.svg)](https://github.com/ProbedJS/probedjs-core/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/ProbedJS/probedjs-core/badge.svg?branch=main)](https://coveralls.io/github/ProbedJS/probedjs-core?branch=main)
 
