@@ -26,6 +26,9 @@ export interface IPNode {
 
     /** Forces the node to be finalized. You generaly don't need to call this. */
     finalize(): void;
+
+    /** The result of the node's callback, finalizing it if needed. */
+    readonly result: unknown;
 }
 
 /** A probed component of which the return type is known. */
@@ -35,10 +38,17 @@ export interface PNode<T> extends IPNode {
 }
 
 /** A function that implements the probe() functionality for a given set of intrinsics. */
-export type ProbingFunction<I extends Intrinsics<I>> = <T extends keyof I | ((...args: any[]) => any)>(
+export type ProbingFunction<I extends FuncMap> = <T extends IKeys<I> | ((...args: any[]) => unknown)>(
     cb: T,
     ...args: ProbedParams<T, I>
 ) => AsPNode<ProbedResult<T, I>>;
+
+/** Meta information available to components. */
+export interface ProbingContext {
+    componentName: string; // The name of the component.
+}
+
+export type Component<Args extends unknown[], Ret> = (...args: Args) => Ret;
 
 // ************ Dynamics - Readers ************ //
 
@@ -92,27 +102,33 @@ export type DynamicReader<T> = DynamicListReader<T extends Array<unknown> ? T : 
 
 export type AsPNode<T> = T extends PNode<infer U> ? PNode<U> : PNode<T>;
 
-export type Component<ArgsT extends any[] = any[], RetT = any> = (...arg: ArgsT) => RetT;
-
-export type Intrinsics<I> = {
-    [_ in keyof I]: Component;
+export type Intrinsics<T> = {
+    [K in keyof T as T[K] extends (...args: any[]) => unknown ? K : never]: T[K];
 };
 
-export type IntrinsicParams<K extends keyof I, I extends Intrinsics<I>> = Parameters<I[K]>;
-export type IntrinsicResult<K extends keyof I, I extends Intrinsics<I>> = ReturnType<I[K]>;
+export type IKeys<T> = keyof T;
 
-export type Probed<I extends Intrinsics<I> = Record<string, never>> = keyof I | Component;
+export type IntrinsicParams<K extends IKeys<I>, I extends FuncMap> = Parameters<I[K]>;
+export type IntrinsicResult<K extends IKeys<I>, I extends FuncMap> = ReturnType<I[K]>;
 
-export type ProbedParams<T extends Probed<I>, I extends Intrinsics<I> = Record<string, never>> = T extends keyof I
+export type Probed<I extends FuncMap> = IKeys<I> | ((...args: any[]) => unknown);
+
+export type ProbedParams<T extends Probed<I>, I extends FuncMap> = T extends IKeys<I>
     ? IntrinsicParams<T, I>
-    : T extends Component<infer P, any>
+    : T extends (...arg: infer P) => unknown
     ? P
     : never;
 
-export type ProbedResult<T extends Probed<I>, I extends Intrinsics<I> = Record<string, never>> = T extends keyof I
+export type ProbedResult<T extends Probed<I>, I extends FuncMap> = T extends IKeys<I>
     ? IntrinsicResult<T, I>
-    : T extends Component<any[], infer P>
+    : T extends (...arg: any[]) => infer P
     ? P
     : never;
+
+export type FuncMap = Record<string, (...args: any[]) => unknown>;
+
+type FallbackParams<T extends FuncMap> = Parameters<T[keyof T]>;
+type FallbackResult<T extends FuncMap> = ReturnType<T[keyof T]>;
+export type IntrinsicFallback<T extends FuncMap> = (...args: FallbackParams<T>) => FallbackResult<T>;
 
 export type ListValueType<ArrayType extends Array<unknown>> = ArrayType[number];

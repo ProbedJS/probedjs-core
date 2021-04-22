@@ -1,8 +1,22 @@
 import { DisposeOp, popEnv, pushEnv } from './Environment';
-import { IPNode, AsPNode, Component, Intrinsics, ProbedParams, ProbedResult, ProbingFunction } from './ApiTypes';
+import {
+    IPNode,
+    AsPNode,
+    Intrinsics,
+    ProbedParams,
+    ProbedResult,
+    IntrinsicFallback,
+    ProbingFunction,
+    IKeys,
+    FuncMap,
+    ProbingContext,
+} from './ApiTypes';
 import { IProber, BaseNode, NodeImpl, UnwrapPNode, isPNode } from './Node';
 
-const isIntrinsic = <I>(cb: keyof I | ((...args: any[]) => any)): cb is keyof I => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ComponentCb = (...args: any[]) => any;
+
+const isIntrinsic = <I>(cb: IKeys<I> | ((...args: unknown[]) => unknown)): cb is IKeys<I> => {
     return typeof cb === 'string';
 };
 
@@ -16,31 +30,42 @@ const addToDisposeQueue = (node: BaseNode, ops: DisposeOp[]) => {
 
 let _NextUniqueNodeId = 0;
 
-class Prober<I extends Intrinsics<I>> implements IProber {
-    private _intrinsics: I;
+class Prober<I extends FuncMap> implements IProber {
+    private _intrinsics: Partial<I>;
+    private _fallback?: IntrinsicFallback<I>;
+
     private _queueHead?: BaseNode;
     private _insert?: BaseNode;
     private _insertStack: (BaseNode | undefined)[] = [];
 
     private _end?: BaseNode;
+    private _currentNode?: BaseNode;
+
     private _pendingOnDispose: DisposeOp[] = [];
     private _finalizeStack: {
         _end: BaseNode | undefined;
         _pendingOnDispose: DisposeOp[];
+        _currentNode: BaseNode | undefined;
     }[] = [];
 
     _onDispose(op: DisposeOp): void {
         this._pendingOnDispose.push(op);
     }
 
-    constructor(intrinsics: I) {
-        this._intrinsics = intrinsics;
+    _getProbingContext(): ProbingContext | undefined {
+        return this._currentNode!._buildData!._context;
     }
 
-    _announce<T extends keyof I | Component>(what: T, ..._args: ProbedParams<T, I>): AsPNode<ProbedResult<T, I>> {
+    constructor(intrinsics: Partial<I>, fallback?: IntrinsicFallback<I>) {
+        this._intrinsics = intrinsics;
+        this._fallback = fallback;
+    }
+
+    _announce<T extends IKeys<I> | ComponentCb>(what: T, ..._args: ProbedParams<T, I>): AsPNode<ProbedResult<T, I>> {
+        const { _cb, _name } = this._getCb(what);
         if (process.env.NODE_ENV !== 'production') {
             if (isIntrinsic<I>(what)) {
-                if (!this._intrinsics[what]) {
+                if (!this._intrinsics[what] && !this._fallback) {
                     throw Error(`"${what}" is not a registered intrinsic in this Prober`);
                 }
             } else {
@@ -55,7 +80,6 @@ class Prober<I extends Intrinsics<I>> implements IProber {
             newNode._uniqueNodeId = _NextUniqueNodeId++;
         }
 
-        const _cb = this._getCb(what);
         let _next: IPNode | undefined;
 
         if (this._queueHead) {
@@ -71,7 +95,15 @@ class Prober<I extends Intrinsics<I>> implements IProber {
             this._end = newNode;
         }
 
-        newNode._buildData = { _cb, _prober: this, _args, _next };
+        newNode._buildData = {
+            _cb,
+            _prober: this,
+            _args,
+            _next,
+            _context: {
+                componentName: _name,
+            },
+        };
 
         return newNode as AsPNode<ProbedResult<T, I>>;
     }
@@ -79,13 +111,19 @@ class Prober<I extends Intrinsics<I>> implements IProber {
     _finalize(target: IPNode): void {
         // This can be called recursively,
         pushEnv(this);
-        this._finalizeStack.push({ _end: this._end, _pendingOnDispose: this._pendingOnDispose });
+        this._finalizeStack.push({
+            _end: this._end,
+            _pendingOnDispose: this._pendingOnDispose,
+            _currentNode: this._currentNode,
+        });
         this._pendingOnDispose = [];
         this._end = target;
 
         let currentNode: BaseNode;
         do {
             currentNode = this._queueHead!;
+            this._currentNode = currentNode;
+
             this._queueHead = currentNode._buildData!._next;
 
             // If a component returns a Node (as opposed to a value), then we short-circuit to the parent.
@@ -98,7 +136,7 @@ class Prober<I extends Intrinsics<I>> implements IProber {
             this._insertStack.push(this._insert);
 
             const { _cb, _args } = currentNode._buildData!;
-            const cbResult = _cb(..._args);
+            const cbResult = _cb(..._args, currentNode._buildData!._context);
 
             if (isPNode(cbResult)) {
                 if (cbResult.finalized) {
@@ -127,22 +165,40 @@ class Prober<I extends Intrinsics<I>> implements IProber {
         const finalizePop = this._finalizeStack.pop()!;
         this._end = finalizePop._end;
         this._pendingOnDispose = finalizePop._pendingOnDispose;
+        this._currentNode = finalizePop._currentNode;
+
         popEnv();
     }
 
-    private _getCb<T extends keyof I | Component>(what: T): Component {
+    private _getCb<T extends IKeys<I> | ComponentCb>(what: T): { _cb: ComponentCb; _name: string } {
         if (isIntrinsic<I>(what)) {
-            return this._intrinsics[what];
+            let _cb: ComponentCb | undefined = this._intrinsics[what];
+            const _name = what.toString();
+            if (!_cb) {
+                // This is safe, it's caught at the start of _announce()
+                _cb = this._fallback!;
+            }
+
+            return { _cb: _cb!, _name };
         } else {
-            return what as Component;
+            return { _cb: what as ComponentCb, _name: (what as ComponentCb).name };
         }
     }
 }
 
-export function createProber<I extends Intrinsics<I>>(intrinsics: I): ProbingFunction<I> {
-    const newProber = new Prober(intrinsics);
+export function createProber<I extends Intrinsics<I>>(intrinsics: I): ProbingFunction<I>;
+export function createProber<I extends Intrinsics<I>>(
+    intrinsics: Partial<I>,
+    fallback: IntrinsicFallback<I>,
+): ProbingFunction<I>;
 
-    const probe = <T extends keyof Intrinsics<I> | Component>(what: T, ...args: ProbedParams<T, I>) =>
+export function createProber<I extends FuncMap>(
+    intrinsics: I | Partial<I>,
+    fallback?: IntrinsicFallback<I>,
+): ProbingFunction<I> {
+    const newProber = new Prober<I>(intrinsics, fallback);
+
+    const probe = <T extends IKeys<I> | ComponentCb>(what: T, ...args: ProbedParams<T, I>) =>
         newProber._announce(what, ...args);
 
     return probe;

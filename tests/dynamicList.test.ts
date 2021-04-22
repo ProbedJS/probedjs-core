@@ -27,6 +27,7 @@ const cleanup = () => {
 beforeEach(() => {
     pushEnv({
         _onDispose: (op: DisposeOp) => disposeQueue.push(op),
+        _getProbingContext: () => undefined,
     });
 });
 
@@ -60,5 +61,4 @@ describe('Dynamic Array', () => {
         x.current = [2, 2, 2];
         expect(y.current).toEqual([4, 4, 4]);
     });
-
 });

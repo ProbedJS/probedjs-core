@@ -27,6 +27,7 @@ const cleanup = () => {
 beforeEach(() => {
     pushEnv({
         _onDispose: (op: DisposeOp) => disposeQueue.push(op),
+        _getProbingContext: () => undefined,
     });
 });
 
@@ -41,7 +42,7 @@ describe('listen', () => {
         const cb = (v: number) => (y += v);
         const v = 12;
         listen(v, cb);
-        expect(y).toBe(12);
+        expect(y).toBe(0);
     });
 
     it('Works on dynamic values', () => {
@@ -49,9 +50,12 @@ describe('listen', () => {
         const cb = (v: number) => (y += v);
         const v = dynamic(12);
         listen(v, cb);
-        expect(y).toBe(12);
+        expect(y).toBe(0);
 
         v.current = 13;
+        expect(y).toBe(13);
+
+        v.current = 12;
         expect(y).toBe(25);
     });
 });

@@ -26,6 +26,9 @@ export interface IPNode {
 
     /** Forces the node to be finalized. You generaly don't need to call this. */
     finalize(): void;
+
+    /** The result of the node's callback, finalizing it if needed. */
+    readonly result: unknown;
 }
 
 /** A probed component of which the return type is known. */
@@ -35,32 +38,17 @@ export interface PNode<T> extends IPNode {
 }
 
 /** A function that implements the probe() functionality for a given set of intrinsics. */
-export type ProbingFunction<I extends Intrinsics<I>> = <T extends keyof I | ((...args: any[]) => any)>(
+export type ProbingFunction<I extends FuncMap> = <T extends IKeys<I> | ((...args: any[]) => unknown)>(
     cb: T,
     ...args: ProbedParams<T, I>
 ) => AsPNode<ProbedResult<T, I>>;
 
-/**
- * Creates a probe() function that is bound against a set of intrinsic components.
- *
- * ex: const probe = createProber({"hi": x=>x+5, "bye": x=>x*2});
- *     probe("hi", 12);
- */
-export declare function createProber<I extends Intrinsics<I>>(intrinsics: I): ProbingFunction<I>;
+/** Meta information available to components. */
+export interface ProbingContext {
+    componentName: string; // The name of the component.
+}
 
-/** Default probe() function not bound to any intrinsic. */
-// eslint-disable-next-line @typescript-eslint/ban-types
-export declare function probe<T extends (...args: any[]) => any>(cb: T, ...args: Parameters<T>): AsPNode<ReturnType<T>>;
-
-// ***************** Hooks ***************** //
-
-/** Registers a callback that will be invoked when component currently being probed is disposed. */
-export declare function useOnDispose(op: () => void): void;
-
-// ***************** Dynamics ***************** //
-
-/** Determines at runtime if a value is static or dynamic. */
-export declare function isDynamic<T>(val: T | DynamicReader<T>): val is DynamicReader<T>;
+export type Component<Args extends unknown[], Ret> = (...args: Args) => Ret;
 
 // ************ Dynamics - Readers ************ //
 
@@ -70,6 +58,9 @@ export interface DynamicReaderBase<T> {
     removeListener(lst: (v: T) => void): void;
 
     readonly current: T;
+
+    /** gets string representation */
+    toString(): string;
 }
 
 /** Consumer API for a dynamic primitive. */
@@ -105,6 +96,40 @@ export interface DynamicList<T extends Array<unknown>> extends DynamicBase<T> {
     push(v: ListValueType<T>): void;
 }
 
+/**
+ * Creates a probe() function that is bound against a set of intrinsic components.
+ *
+ * ex: const probe = createProber({"hi": x=>x+5, "bye": x=>x*2});
+ *     probe("hi", 12);
+ */
+export function createProber<I extends Intrinsics<I>>(intrinsics: I): ProbingFunction<I>;
+export function createProber<I extends Intrinsics<I>>(
+    intrinsics: Partial<I>,
+    fallback: IntrinsicFallback<I>,
+): ProbingFunction<I>;
+
+/** Default probe() function not bound to any intrinsic. */
+// eslint-disable-next-line @typescript-eslint/ban-types
+export declare function probe<T extends (...args: any[]) => unknown>(
+    cb: T,
+    ...args: Parameters<T>
+): AsPNode<ReturnType<T>>;
+
+// ***************** Hooks ***************** //
+
+/** Registers a callback that will be invoked when component currently being probed is disposed. */
+export declare function useOnDispose(op: () => void): void;
+
+/** Obtains the probing context for the node being probed */
+export declare function useProbingContext(): ProbingContext;
+
+// ***************** Dynamics ***************** //
+
+/** Determines at runtime if a value is static or dynamic. */
+export declare function isDynamic<T>(val: T | DynamicReader<T>): val is DynamicReader<T>;
+
+// ************ Dynamics - Readers ************ //
+
 /** Creates a new Dynamic value. */
 export declare function dynamic<T>(init: T[]): DynamicList<T[]>;
 export declare function dynamic<T>(init: T): DynamicValue<T>;
@@ -124,31 +149,37 @@ export declare function valType<T>(v: Reader<T>): string;
 
 // ***************** Utility / not user-facing ***************** //
 
-type DynamicReader<T> = DynamicListReader<T extends Array<unknown> ? T : never> | DynamicValueReader<T>;
+export type DynamicReader<T> = DynamicListReader<T extends Array<unknown> ? T : never> | DynamicValueReader<T>;
 
-type AsPNode<T> = T extends PNode<infer U> ? PNode<U> : PNode<T>;
+export type AsPNode<T> = T extends PNode<infer U> ? PNode<U> : PNode<T>;
 
-type Component<ArgsT extends any[] = any[], RetT = any> = (...arg: ArgsT) => RetT;
-
-type Intrinsics<I> = {
-    [_ in keyof I]: Component;
+export type Intrinsics<T> = {
+    [K in keyof T as T[K] extends (...args: any[]) => unknown ? K : never]: T[K];
 };
 
-type IntrinsicParams<K extends keyof I, I extends Intrinsics<I>> = Parameters<I[K]>;
-type IntrinsicResult<K extends keyof I, I extends Intrinsics<I>> = ReturnType<I[K]>;
+export type IKeys<T> = keyof T;
 
-type Probed<I extends Intrinsics<I> = Record<string, never>> = keyof I | Component;
+export type IntrinsicParams<K extends IKeys<I>, I extends FuncMap> = Parameters<I[K]>;
+export type IntrinsicResult<K extends IKeys<I>, I extends FuncMap> = ReturnType<I[K]>;
 
-type ProbedParams<T extends Probed<I>, I extends Intrinsics<I> = Record<string, never>> = T extends keyof I
+export type Probed<I extends FuncMap> = IKeys<I> | ((...args: any[]) => unknown);
+
+export type ProbedParams<T extends Probed<I>, I extends FuncMap> = T extends IKeys<I>
     ? IntrinsicParams<T, I>
-    : T extends Component<infer P, any>
+    : T extends (...arg: infer P) => unknown
     ? P
     : never;
 
-type ProbedResult<T extends Probed<I>, I extends Intrinsics<I> = Record<string, never>> = T extends keyof I
+export type ProbedResult<T extends Probed<I>, I extends FuncMap> = T extends IKeys<I>
     ? IntrinsicResult<T, I>
-    : T extends Component<any[], infer P>
+    : T extends (...arg: any[]) => infer P
     ? P
     : never;
 
-type ListValueType<ArrayType extends Array<unknown>> = ArrayType[number];
+export type FuncMap = Record<string, (...args: any[]) => unknown>;
+
+type FallbackParams<T extends FuncMap> = Parameters<T[keyof T]>;
+type FallbackResult<T extends FuncMap> = ReturnType<T[keyof T]>;
+export type IntrinsicFallback<T extends FuncMap> = (...args: FallbackParams<T>) => FallbackResult<T>;
+
+export type ListValueType<ArrayType extends Array<unknown>> = ArrayType[number];

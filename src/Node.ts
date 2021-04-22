@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { IPNode } from './ApiTypes';
+import { IPNode, ProbingContext } from './ApiTypes';
 import { DisposeOp } from './Environment';
 
 export interface IProber {
@@ -22,12 +22,13 @@ export interface IProber {
 }
 
 export interface NodeBuildData {
-    _cb: (...arg: any[]) => any;
-    _args: any[];
+    _cb: (...arg: unknown[]) => unknown;
+    _args: unknown[];
 
     _next?: IPNode;
     _resolveAs?: IPNode;
     _prober: IProber;
+    _context: ProbingContext;
 }
 
 export abstract class BaseNode implements IPNode {
@@ -47,6 +48,8 @@ export abstract class BaseNode implements IPNode {
             this._onDispose = undefined;
         }
     }
+
+    abstract get result(): unknown;
 
     _result?: unknown;
     _probed_pnodetype?: number;

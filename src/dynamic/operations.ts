@@ -21,10 +21,7 @@ import { DynamicValueImpl } from './Value';
 
 export function listen<T>(v: T | DynamicReaderBase<T>, cb: (v: T) => void): void {
     if (isDynamic(v)) {
-        cb(v.current);
         v.addListener(cb);
-    } else {
-        return cb(v);
     }
 }
 
