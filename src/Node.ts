@@ -48,6 +48,8 @@ export abstract class BaseNode implements IPNode {
         }
     }
 
+    abstract get result(): unknown;
+
     _result?: unknown;
     _probed_pnodetype?: number;
     _onDispose?: DisposeOp[];
