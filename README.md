@@ -8,7 +8,7 @@ A single-pass JSX-friendly dynamic tree backend. Aka, React without rerenders.
 
 [![CI](https://github.com/ProbedJS/probedjs-core/actions/workflows/ci.yml/badge.svg)](https://github.com/ProbedJS/probedjs-core/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/ProbedJS/probedjs-core/badge.svg?branch=main)](https://coveralls.io/github/ProbedJS/probedjs-core?branch=main)
-
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/ProbedJS/probedjs-core.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/ProbedJS/probedjs-core/alerts/)
 ## Installation
 
 ```
