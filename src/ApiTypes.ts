@@ -26,6 +26,9 @@ export interface IPNode {
 
     /** Forces the node to be finalized. You generaly don't need to call this. */
     finalize(): void;
+
+    /** The result of the node's callback, finalizing it if needed. */
+    readonly result: unknown;
 }
 
 /** A probed component of which the return type is known. */
