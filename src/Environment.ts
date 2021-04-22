@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
+import { ProbingContext } from './ApiTypes';
+
 export type DisposeOp = () => void;
 export interface Environment {
     _onDispose: (op: DisposeOp) => void;
+    _getProbingContext: () => ProbingContext | undefined;
 }
 
 let _currentEnv: Environment | null = null;
@@ -41,3 +44,16 @@ export const useOnDispose = (op: DisposeOp): void => {
 
     _currentEnv!._onDispose(op);
 };
+
+export function useProbingContext(): ProbingContext {
+    if (process.env.NODE_ENV !== 'production' && !_currentEnv) {
+        throw new Error('Environment underflow');
+    }
+
+    const result = _currentEnv!._getProbingContext();
+    if (process.env.NODE_ENV !== 'production' && !result) {
+        throw new Error('There is no active probing context');
+    }
+
+    return result!;
+}

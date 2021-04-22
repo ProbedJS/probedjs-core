@@ -48,7 +48,7 @@ export interface ProbingContext {
     componentName: string; // The name of the component.
 }
 
-export type Component<Args extends unknown[], Ret> = (...args: AddOptionalContext<Args>) => Ret;
+export type Component<Args extends unknown[], Ret> = (...args: Args) => Ret;
 
 // ************ Dynamics - Readers ************ //
 
@@ -108,10 +108,7 @@ export type Intrinsics<T> = {
 
 export type IKeys<T> = keyof T;
 
-type AddOptionalContext<T extends unknown[]> = [...T, ProbingContext];
-type RemoveContextArg<T> = T extends [...infer Rest, infer LastArg] ? (LastArg extends ProbingContext ? Rest : T) : T;
-
-export type IntrinsicParams<K extends IKeys<I>, I extends FuncMap> = RemoveContextArg<Parameters<I[K]>>;
+export type IntrinsicParams<K extends IKeys<I>, I extends FuncMap> = Parameters<I[K]>;
 export type IntrinsicResult<K extends IKeys<I>, I extends FuncMap> = ReturnType<I[K]>;
 
 export type Probed<I extends FuncMap> = IKeys<I> | ((...args: any[]) => unknown);
@@ -119,7 +116,7 @@ export type Probed<I extends FuncMap> = IKeys<I> | ((...args: any[]) => unknown)
 export type ProbedParams<T extends Probed<I>, I extends FuncMap> = T extends IKeys<I>
     ? IntrinsicParams<T, I>
     : T extends (...arg: infer P) => unknown
-    ? RemoveContextArg<P>
+    ? P
     : never;
 
 export type ProbedResult<T extends Probed<I>, I extends FuncMap> = T extends IKeys<I>
@@ -132,8 +129,6 @@ export type FuncMap = Record<string, (...args: any[]) => unknown>;
 
 type FallbackParams<T extends FuncMap> = Parameters<T[keyof T]>;
 type FallbackResult<T extends FuncMap> = ReturnType<T[keyof T]>;
-export type IntrinsicFallback<T extends FuncMap> = (
-    ...args: AddOptionalContext<FallbackParams<T>>
-) => FallbackResult<T>;
+export type IntrinsicFallback<T extends FuncMap> = (...args: FallbackParams<T>) => FallbackResult<T>;
 
 export type ListValueType<ArrayType extends Array<unknown>> = ArrayType[number];

@@ -9,6 +9,7 @@ import {
     ProbingFunction,
     IKeys,
     FuncMap,
+    ProbingContext,
 } from './ApiTypes';
 import { IProber, BaseNode, NodeImpl, UnwrapPNode, isPNode } from './Node';
 
@@ -38,14 +39,21 @@ class Prober<I extends FuncMap> implements IProber {
     private _insertStack: (BaseNode | undefined)[] = [];
 
     private _end?: BaseNode;
+    private _currentNode?: BaseNode;
+
     private _pendingOnDispose: DisposeOp[] = [];
     private _finalizeStack: {
         _end: BaseNode | undefined;
         _pendingOnDispose: DisposeOp[];
+        _currentNode: BaseNode | undefined;
     }[] = [];
 
     _onDispose(op: DisposeOp): void {
         this._pendingOnDispose.push(op);
+    }
+
+    _getProbingContext(): ProbingContext | undefined {
+        return this._currentNode?._buildData!._context;
     }
 
     constructor(intrinsics: Partial<I>, fallback?: IntrinsicFallback<I>) {
@@ -103,13 +111,19 @@ class Prober<I extends FuncMap> implements IProber {
     _finalize(target: IPNode): void {
         // This can be called recursively,
         pushEnv(this);
-        this._finalizeStack.push({ _end: this._end, _pendingOnDispose: this._pendingOnDispose });
+        this._finalizeStack.push({
+            _end: this._end,
+            _pendingOnDispose: this._pendingOnDispose,
+            _currentNode: this._currentNode,
+        });
         this._pendingOnDispose = [];
         this._end = target;
 
         let currentNode: BaseNode;
         do {
             currentNode = this._queueHead!;
+            this._currentNode = currentNode;
+
             this._queueHead = currentNode._buildData!._next;
 
             // If a component returns a Node (as opposed to a value), then we short-circuit to the parent.
@@ -151,6 +165,8 @@ class Prober<I extends FuncMap> implements IProber {
         const finalizePop = this._finalizeStack.pop()!;
         this._end = finalizePop._end;
         this._pendingOnDispose = finalizePop._pendingOnDispose;
+        this._currentNode = finalizePop._currentNode;
+
         popEnv();
     }
 

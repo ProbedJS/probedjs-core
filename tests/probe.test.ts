@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { probe, createProber, PNode, useOnDispose, ProbingContext, Component } from '../src';
+import { probe, createProber, PNode, useOnDispose, ProbingContext, Component, useProbingContext } from '../src';
 import { expectThrowInNotProd } from './utils';
 
 describe('Basic prober', () => {
@@ -26,12 +26,6 @@ describe('Basic prober', () => {
 
     it('Works with function with single argument', () => {
         const result = probe((v: number) => v + 1, 1);
-
-        expect(result.result).toBe(2);
-    });
-
-    it('Works with function That accepts context', () => {
-        const result = probe((v: number, _ctx: ProbingContext) => v + 1, 1);
 
         expect(result.result).toBe(2);
     });
@@ -89,8 +83,8 @@ describe('Basic prober', () => {
 
 describe('Prober with intrinsics', () => {
     const mapping = {
-        aaa: (v: number, ctx: ProbingContext) => {
-            expect(ctx.componentName).toBe('aaa');
+        aaa: (v: number) => {
+            expect(useProbingContext().componentName).toBe('aaa');
             return v + 1;
         },
         bbb: (v: number) => v + 4,
@@ -148,8 +142,8 @@ describe('Dynamic intrinsic lookup', () => {
             bbb: (v: string) => Specialized;
         }
 
-        const componentImpl = (v: number | string, ctx: ProbingContext): Base | Specialized => {
-            return { x: ctx.componentName };
+        const componentImpl = (_: number | string): Base | Specialized => {
+            return { x: useProbingContext().componentName };
         };
 
         const sutProbe = createProber<TypeInfo>({}, componentImpl);
