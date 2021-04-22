@@ -22,17 +22,17 @@ const fullConfig = {
     projects: [
         {
             displayName: 'prod',
-            setupFiles: ['./tests/variants/prod.js'],
+            setupFiles: ['./tests/setup/prod.js'],
             ...baseConfig,
         },
         {
             displayName: 'dev',
-            setupFiles: ['./tests/variants/dev.js'],
+            setupFiles: ['./tests/setup/dev.js'],
             ...baseConfig,
         },
         {
             displayName: 'check',
-            setupFiles: ['./tests/variants/check.js'],
+            setupFiles: ['./tests/setup/check.js'],
             ...baseConfig,
         },
     ],
