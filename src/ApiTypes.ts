@@ -38,13 +38,14 @@ export interface PNode<T> extends IPNode {
 }
 
 /** A function that implements the probe() functionality for a given set of intrinsics. */
-export type ProbingFunction<I extends Intrinsics<I>> = <T extends keyof I | ((...args: any[]) => unknown)>(
+export type ProbingFunction<I extends FuncMap> = <T extends IKeys<I> | ((...args: any[]) => unknown)>(
     cb: T,
     ...args: ProbedParams<T, I>
 ) => AsPNode<ProbedResult<T, I>>;
 
+/** Meta information available to components. */
 export interface ProbingContext {
-    componentName: string;
+    componentName: string; // The name of the component.
 }
 
 export type Component<Args extends unknown[], Ret> = (...args: AddOptionalContext<Args>) => Ret;
@@ -102,31 +103,37 @@ export type DynamicReader<T> = DynamicListReader<T extends Array<unknown> ? T : 
 export type AsPNode<T> = T extends PNode<infer U> ? PNode<U> : PNode<T>;
 
 export type Intrinsics<T> = {
-    [K in keyof T]: T[K] extends (...args: any[]) => unknown ? T[K] : never;
+    [K in keyof T as T[K] extends (...args: any[]) => unknown ? K : never]: T[K];
 };
 
-export type IKeys<T> = keyof Intrinsics<T>;
+export type IKeys<T> = keyof T;
 
 type AddOptionalContext<T extends unknown[]> = [...T, ProbingContext];
 type RemoveContextArg<T> = T extends [...infer Rest, infer LastArg] ? (LastArg extends ProbingContext ? Rest : T) : T;
 
-export type IntrinsicParams<K extends IKeys<I>, I extends Intrinsics<I>> = RemoveContextArg<
-    Parameters<Intrinsics<I>[K]>
->;
-export type IntrinsicResult<K extends IKeys<I>, I extends Intrinsics<I>> = ReturnType<Intrinsics<I>[K]>;
+export type IntrinsicParams<K extends IKeys<I>, I extends FuncMap> = RemoveContextArg<Parameters<I[K]>>;
+export type IntrinsicResult<K extends IKeys<I>, I extends FuncMap> = ReturnType<I[K]>;
 
-export type Probed<I extends Intrinsics<I> = Record<string, never>> = IKeys<I> | ((...args: any[]) => unknown);
+export type Probed<I extends FuncMap> = IKeys<I> | ((...args: any[]) => unknown);
 
-export type ProbedParams<T extends Probed<I>, I extends Intrinsics<I> = Record<string, never>> = T extends keyof I
+export type ProbedParams<T extends Probed<I>, I extends FuncMap> = T extends IKeys<I>
     ? IntrinsicParams<T, I>
     : T extends (...arg: infer P) => unknown
     ? RemoveContextArg<P>
     : never;
 
-export type ProbedResult<T extends Probed<I>, I extends Intrinsics<I> = Record<string, never>> = T extends keyof I
+export type ProbedResult<T extends Probed<I>, I extends FuncMap> = T extends IKeys<I>
     ? IntrinsicResult<T, I>
     : T extends (...arg: any[]) => infer P
     ? P
     : never;
+
+export type FuncMap = Record<string, (...args: any[]) => unknown>;
+
+type FallbackParams<T extends FuncMap> = Parameters<T[keyof T]>;
+type FallbackResult<T extends FuncMap> = ReturnType<T[keyof T]>;
+export type IntrinsicFallback<T extends FuncMap> = (
+    ...args: AddOptionalContext<FallbackParams<T>>
+) => FallbackResult<T>;
 
 export type ListValueType<ArrayType extends Array<unknown>> = ArrayType[number];

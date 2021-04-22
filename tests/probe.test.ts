@@ -133,6 +133,32 @@ describe('Prober with intrinsics', () => {
     });
 });
 
+describe('Dynamic intrinsic lookup', () => {
+    it('works', () => {
+        interface Base {
+            x: string;
+        }
+
+        interface Specialized extends Base {
+            y: number;
+        }
+
+        interface TypeInfo {
+            aaa: (v: number) => Base;
+            bbb: (v: string) => Specialized;
+        }
+
+        const componentImpl = (v: number | string, ctx: ProbingContext): Base | Specialized => {
+            return { x: ctx.componentName };
+        };
+
+        const sutProbe = createProber<TypeInfo>({}, componentImpl);
+
+        expect(sutProbe('aaa', 0).result.x).toBe('aaa');
+        expect(sutProbe('bbb', 'allo').result.x).toBe('bbb');
+    });
+});
+
 describe('Component With dispose', () => {
     interface ctx {
         v: number;
