@@ -53,10 +53,7 @@ class Prober<I extends FuncMap> implements IProber {
     }
 
     _getProbingContext(): ProbingContext | undefined {
-        if (this._currentNode) {
-            return this._currentNode._buildData!._context;
-        }
-        return undefined;
+        return this._currentNode!._buildData!._context;
     }
 
     constructor(intrinsics: Partial<I>, fallback?: IntrinsicFallback<I>) {
