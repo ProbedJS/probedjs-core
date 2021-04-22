@@ -27,6 +27,7 @@ const cleanup = () => {
 beforeEach(() => {
     pushEnv({
         _onDispose: (op: DisposeOp) => disposeQueue.push(op),
+        _getProbingContext: () => undefined,
     });
 });
 
