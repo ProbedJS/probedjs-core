@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { probe, createProber, PNode, useOnDispose, Component } from '../src';
+import { probe, createProber, PNode, useOnDispose, ProbingContext, Component } from '../src';
 import { expectThrowInNotProd } from './utils';
 
 describe('Basic prober', () => {
@@ -26,6 +26,12 @@ describe('Basic prober', () => {
 
     it('Works with function with single argument', () => {
         const result = probe((v: number) => v + 1, 1);
+
+        expect(result.result).toBe(2);
+    });
+
+    it('Works with function That accepts context', () => {
+        const result = probe((v: number, _ctx: ProbingContext) => v + 1, 1);
 
         expect(result.result).toBe(2);
     });
@@ -63,13 +69,34 @@ describe('Basic prober', () => {
         //@ts-expect-error
         expectThrowInNotProd(() => probe('', {}));
     });
+
+    // These cannot be made into runtime tests, because there's
+    // No way to determine at runtime if a function expects a context
+    // or not.
+    it('Fails when not passing enough arguments', () => {
+        //@ts-expect-error
+        () => probe((v1: number, v2: number) => v1 + v2, 12);
+    });
+
+    it('Fails when passing too many arguments', () => {
+        //@ts-expect-error
+        () => expectThrowInNotProd(() => probe((v1: number) => v1, 12, 13));
+
+        //@ts-expect-error
+        () => expectThrowInNotProd(() => probe((v1: number, _ctx: ProbingContext) => v1, 12, 13));
+    });
 });
 
 describe('Prober with intrinsics', () => {
-    const sutProbe = createProber({
-        aaa: (v: number) => v + 1,
+    const mapping = {
+        aaa: (v: number, ctx: ProbingContext) => {
+            expect(ctx.componentName).toBe('aaa');
+            return v + 1;
+        },
         bbb: (v: number) => v + 4,
-    });
+    };
+
+    const sutProbe = createProber(mapping);
 
     it('Produces a payload', () => {
         const resultA = sutProbe('aaa', 1);
@@ -91,6 +118,18 @@ describe('Prober with intrinsics', () => {
 
         //@ts-expect-error
         expectThrowInNotProd(() => sutProbe('', {}));
+    });
+
+    it('Still handles functional', () => {
+        const result = sutProbe((v: number) => v + 1, 1);
+        expect(result.result).toBe(2);
+    });
+
+    it('works with higher-order components', () => {
+        const HOC = (c: Component<[number], unknown>) => sutProbe(c, 12);
+
+        expect(sutProbe(HOC, mapping.aaa).result).toBe(13);
+        expect(sutProbe(HOC, mapping.bbb).result).toBe(16);
     });
 });
 

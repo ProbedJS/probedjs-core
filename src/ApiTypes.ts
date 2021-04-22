@@ -38,10 +38,16 @@ export interface PNode<T> extends IPNode {
 }
 
 /** A function that implements the probe() functionality for a given set of intrinsics. */
-export type ProbingFunction<I extends Intrinsics<I>> = <T extends keyof I | ((...args: any[]) => any)>(
+export type ProbingFunction<I extends Intrinsics<I>> = <T extends keyof I | ((...args: any[]) => unknown)>(
     cb: T,
     ...args: ProbedParams<T, I>
 ) => AsPNode<ProbedResult<T, I>>;
+
+export interface ProbingContext {
+    componentName: string;
+}
+
+export type Component<Args extends unknown[], Ret> = (...args: AddOptionalContext<Args>) => Ret;
 
 // ************ Dynamics - Readers ************ //
 
@@ -95,26 +101,31 @@ export type DynamicReader<T> = DynamicListReader<T extends Array<unknown> ? T : 
 
 export type AsPNode<T> = T extends PNode<infer U> ? PNode<U> : PNode<T>;
 
-export type Component<ArgsT extends any[] = any[], RetT = any> = (...arg: ArgsT) => RetT;
-
-export type Intrinsics<I> = {
-    [_ in keyof I]: Component;
+export type Intrinsics<T> = {
+    [K in keyof T]: T[K] extends (...args: any[]) => unknown ? T[K] : never;
 };
 
-export type IntrinsicParams<K extends keyof I, I extends Intrinsics<I>> = Parameters<I[K]>;
-export type IntrinsicResult<K extends keyof I, I extends Intrinsics<I>> = ReturnType<I[K]>;
+export type IKeys<T> = keyof Intrinsics<T>;
 
-export type Probed<I extends Intrinsics<I> = Record<string, never>> = keyof I | Component;
+type AddOptionalContext<T extends unknown[]> = [...T, ProbingContext];
+type RemoveContextArg<T> = T extends [...infer Rest, infer LastArg] ? (LastArg extends ProbingContext ? Rest : T) : T;
+
+export type IntrinsicParams<K extends IKeys<I>, I extends Intrinsics<I>> = RemoveContextArg<
+    Parameters<Intrinsics<I>[K]>
+>;
+export type IntrinsicResult<K extends IKeys<I>, I extends Intrinsics<I>> = ReturnType<Intrinsics<I>[K]>;
+
+export type Probed<I extends Intrinsics<I> = Record<string, never>> = IKeys<I> | ((...args: any[]) => unknown);
 
 export type ProbedParams<T extends Probed<I>, I extends Intrinsics<I> = Record<string, never>> = T extends keyof I
     ? IntrinsicParams<T, I>
-    : T extends Component<infer P, any>
-    ? P
+    : T extends (...arg: infer P) => unknown
+    ? RemoveContextArg<P>
     : never;
 
 export type ProbedResult<T extends Probed<I>, I extends Intrinsics<I> = Record<string, never>> = T extends keyof I
     ? IntrinsicResult<T, I>
-    : T extends Component<any[], infer P>
+    : T extends (...arg: any[]) => infer P
     ? P
     : never;
 

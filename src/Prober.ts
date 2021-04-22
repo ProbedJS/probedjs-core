@@ -1,8 +1,10 @@
 import { DisposeOp, popEnv, pushEnv } from './Environment';
-import { IPNode, AsPNode, Component, Intrinsics, ProbedParams, ProbedResult, ProbingFunction } from './ApiTypes';
+import { IPNode, AsPNode, Intrinsics, ProbedParams, ProbedResult, ProbingFunction, IKeys } from './ApiTypes';
 import { IProber, BaseNode, NodeImpl, UnwrapPNode, isPNode } from './Node';
 
-const isIntrinsic = <I>(cb: keyof I | ((...args: any[]) => any)): cb is keyof I => {
+type ComponentCb = (...arg: any[]) => unknown;
+
+const isIntrinsic = <I>(cb: keyof I | ((...args: unknown[]) => unknown)): cb is keyof I => {
     return typeof cb === 'string';
 };
 
@@ -17,7 +19,7 @@ const addToDisposeQueue = (node: BaseNode, ops: DisposeOp[]) => {
 let _NextUniqueNodeId = 0;
 
 class Prober<I extends Intrinsics<I>> implements IProber {
-    private _intrinsics: I;
+    private _intrinsics: Intrinsics<I>;
     private _queueHead?: BaseNode;
     private _insert?: BaseNode;
     private _insertStack: (BaseNode | undefined)[] = [];
@@ -37,7 +39,8 @@ class Prober<I extends Intrinsics<I>> implements IProber {
         this._intrinsics = intrinsics;
     }
 
-    _announce<T extends keyof I | Component>(what: T, ..._args: ProbedParams<T, I>): AsPNode<ProbedResult<T, I>> {
+    _announce<T extends IKeys<I> | ComponentCb>(what: T, ..._args: ProbedParams<T, I>): AsPNode<ProbedResult<T, I>> {
+        const { _cb, _name } = this._getCb(what);
         if (process.env.NODE_ENV !== 'production') {
             if (isIntrinsic<I>(what)) {
                 if (!this._intrinsics[what]) {
@@ -55,7 +58,6 @@ class Prober<I extends Intrinsics<I>> implements IProber {
             newNode._uniqueNodeId = _NextUniqueNodeId++;
         }
 
-        const _cb = this._getCb(what);
         let _next: IPNode | undefined;
 
         if (this._queueHead) {
@@ -71,7 +73,15 @@ class Prober<I extends Intrinsics<I>> implements IProber {
             this._end = newNode;
         }
 
-        newNode._buildData = { _cb, _prober: this, _args, _next };
+        newNode._buildData = {
+            _cb,
+            _prober: this,
+            _args,
+            _next,
+            _context: {
+                componentName: _name,
+            },
+        };
 
         return newNode as AsPNode<ProbedResult<T, I>>;
     }
@@ -98,7 +108,7 @@ class Prober<I extends Intrinsics<I>> implements IProber {
             this._insertStack.push(this._insert);
 
             const { _cb, _args } = currentNode._buildData!;
-            const cbResult = _cb(..._args);
+            const cbResult = _cb(..._args, currentNode._buildData!._context);
 
             if (isPNode(cbResult)) {
                 if (cbResult.finalized) {
@@ -130,11 +140,11 @@ class Prober<I extends Intrinsics<I>> implements IProber {
         popEnv();
     }
 
-    private _getCb<T extends keyof I | Component>(what: T): Component {
+    private _getCb<T extends IKeys<I> | ComponentCb>(what: T): { _cb: ComponentCb; _name: string } {
         if (isIntrinsic<I>(what)) {
-            return this._intrinsics[what];
+            return { _cb: this._intrinsics[what], _name: what.toString() };
         } else {
-            return what as Component;
+            return { _cb: what as ComponentCb, _name: (what as ComponentCb).name };
         }
     }
 }
@@ -142,7 +152,7 @@ class Prober<I extends Intrinsics<I>> implements IProber {
 export function createProber<I extends Intrinsics<I>>(intrinsics: I): ProbingFunction<I> {
     const newProber = new Prober(intrinsics);
 
-    const probe = <T extends keyof Intrinsics<I> | Component>(what: T, ...args: ProbedParams<T, I>) =>
+    const probe = <T extends keyof Intrinsics<I> | ComponentCb>(what: T, ...args: ProbedParams<T, I>) =>
         newProber._announce(what, ...args);
 
     return probe;
