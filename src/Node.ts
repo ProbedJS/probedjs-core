@@ -49,6 +49,14 @@ export abstract class BaseNode implements IPNode {
         }
     }
 
+    _addToDispose(ops: DisposeOp[]): void {
+        if (!this._onDispose) {
+            this._onDispose = ops;
+        } else {
+            this._onDispose = this._onDispose.concat(ops);
+        }
+    };
+
     abstract get result(): unknown;
 
     _result?: unknown;

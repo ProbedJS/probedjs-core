@@ -20,14 +20,6 @@ const isIntrinsic = <I>(cb: IKeys<I> | ((...args: unknown[]) => unknown)): cb is
     return typeof cb === 'string';
 };
 
-const addToDisposeQueue = (node: BaseNode, ops: DisposeOp[]) => {
-    if (!node._onDispose) {
-        node._onDispose = ops;
-    } else {
-        node._onDispose = node._onDispose.concat(ops);
-    }
-};
-
 let _NextUniqueNodeId = 0;
 
 interface NodeQueue {
@@ -112,7 +104,7 @@ class Prober<I extends FuncMap> implements IProber {
                 // Post-ex-facto proxying.
                 destinationNode._result = cbResult._result;
                 if (cbResult._onDispose) {
-                    addToDisposeQueue(destinationNode, cbResult._onDispose);
+                    destinationNode._addToDispose(cbResult._onDispose);
                     cbResult._onDispose = undefined;
                 }
             } else {
@@ -123,7 +115,7 @@ class Prober<I extends FuncMap> implements IProber {
         }
 
         if (this._current._disposeOps.length > 0) {
-            addToDisposeQueue(destinationNode, this._current._disposeOps);
+            destinationNode._addToDispose(this._current._disposeOps);
             this._current._disposeOps = [];
         }
     }
@@ -170,7 +162,7 @@ class Prober<I extends FuncMap> implements IProber {
             done = node === end;
             const nextNode = node._buildData!._next;
             node._buildData = undefined;
-            node = nextNode;
+            node = nextNode!;
         }
 
         this._current = this._stack.pop()!;
