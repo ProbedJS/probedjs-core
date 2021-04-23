@@ -15,7 +15,7 @@
  */
 
 import { probe, createProber, PNode, useOnDispose, ProbingContext, Component, useProbingContext } from '../src';
-import { expectThrowInNotProd } from './utils';
+import { expectThrowInCheck, expectThrowInNotProd } from './utils';
 
 describe('Basic prober', () => {
     it('Works with function without arguments', () => {
@@ -271,5 +271,37 @@ describe('Pre-finalized components', () => {
 
     it('Disposed correctly', () => {
         expect(disposed).toBe(8);
+    });
+});
+
+describe('Weird cases', () => {
+    it('catches out of context finalization', () => {
+        const prober = createProber({});
+
+        //This actually takes a surprising effort to pull off...
+        interface TMP {
+            x?: PNode<number>;
+        }
+        const tmp: TMP = {};
+
+        const a = prober((v: TMP) => v.x!.result, tmp);
+        tmp.x = prober(() => 12);
+
+        expectThrowInCheck(() => {
+            return a.result;
+        });
+    });
+
+    it('Wildly out of order valid evaluation', () => {
+        //This actually takes a surprising effort to pull off...
+
+        const Comp = (x: number) => x + x;
+        const data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        const nodes = data.map((v) => probe(Comp, v));
+
+        expect(nodes[5].result).toBe(10);
+        expect(nodes[2].result).toBe(4);
+        expect(nodes[9].result).toBe(18);
+        expect(nodes[0].result).toBe(0);
     });
 });
