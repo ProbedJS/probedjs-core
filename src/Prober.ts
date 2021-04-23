@@ -30,30 +30,29 @@ const addToDisposeQueue = (node: BaseNode, ops: DisposeOp[]) => {
 
 let _NextUniqueNodeId = 0;
 
+interface NodeQueue {
+    _head: BaseNode;
+    _tail: BaseNode;
+}
+
+interface ProberStackFrame {
+    _node?: BaseNode;
+    _disposeOps: DisposeOp[];
+    _announced?: NodeQueue;
+}
+
 class Prober<I extends FuncMap> implements IProber {
     private _intrinsics: Partial<I>;
     private _fallback?: IntrinsicFallback<I>;
-
-    private _queueHead?: BaseNode;
-    private _insert?: BaseNode;
-    private _insertStack: (BaseNode | undefined)[] = [];
-
-    private _end?: BaseNode;
-    private _currentNode?: BaseNode;
-
-    private _pendingOnDispose: DisposeOp[] = [];
-    private _finalizeStack: {
-        _end: BaseNode | undefined;
-        _pendingOnDispose: DisposeOp[];
-        _currentNode: BaseNode | undefined;
-    }[] = [];
+    private _stack: ProberStackFrame[] = [];
+    private _current: ProberStackFrame = { _disposeOps: [] };
 
     _onDispose(op: DisposeOp): void {
-        this._pendingOnDispose.push(op);
+        this._current._disposeOps.push(op);
     }
 
     _getProbingContext(): ProbingContext | undefined {
-        return this._currentNode!._buildData!._context;
+        return this._current!._node!._buildData!._context;
     }
 
     constructor(intrinsics: Partial<I>, fallback?: IntrinsicFallback<I>) {
@@ -80,26 +79,17 @@ class Prober<I extends FuncMap> implements IProber {
             newNode._uniqueNodeId = _NextUniqueNodeId++;
         }
 
-        let _next: IPNode | undefined;
-
-        if (this._queueHead) {
-            _next = this._insert!._buildData!._next;
-            if (this._insert === this._end) {
-                this._end = newNode;
-            }
-            this._insert!._buildData!._next = newNode;
-            this._insert = newNode;
+        if (!this._current._announced) {
+            this._current._announced = { _head: newNode, _tail: newNode };
         } else {
-            this._queueHead = newNode;
-            this._insert = newNode;
-            this._end = newNode;
+            this._current._announced._tail._buildData!._next = newNode;
+            this._current._announced._tail = newNode;
         }
 
         newNode._buildData = {
             _cb,
             _prober: this,
             _args,
-            _next,
             _context: {
                 componentName: _name,
             },
@@ -108,65 +98,91 @@ class Prober<I extends FuncMap> implements IProber {
         return newNode as AsPNode<ProbedResult<T, I>>;
     }
 
-    _finalize(target: IPNode): void {
-        // This can be called recursively,
-        pushEnv(this);
-        this._finalizeStack.push({
-            _end: this._end,
-            _pendingOnDispose: this._pendingOnDispose,
-            _currentNode: this._currentNode,
-        });
-        this._pendingOnDispose = [];
-        this._end = target;
+    _finalizeNode(node: BaseNode) {
+        // If a component returns a Node (as opposed to a value), then we short-circuit to the parent.
+        let destinationNode = node;
+        while (destinationNode._buildData && destinationNode._buildData._resolveAs) {
+            destinationNode = destinationNode._buildData!._resolveAs;
+        }
 
-        let currentNode: BaseNode;
-        do {
-            currentNode = this._queueHead!;
-            this._currentNode = currentNode;
+        this._current._node = node;
+        const { _cb, _args } = node._buildData!;
+        const cbResult = _cb(..._args, node._buildData!._context);
 
-            this._queueHead = currentNode._buildData!._next;
-
-            // If a component returns a Node (as opposed to a value), then we short-circuit to the parent.
-            let destinationNode = currentNode;
-            while (destinationNode._buildData && destinationNode._buildData._resolveAs) {
-                destinationNode = destinationNode._buildData!._resolveAs;
-            }
-
-            //
-            this._insertStack.push(this._insert);
-
-            const { _cb, _args } = currentNode._buildData!;
-            const cbResult = _cb(..._args, currentNode._buildData!._context);
-
-            if (isPNode(cbResult)) {
-                if (cbResult.finalized) {
-                    // Post-ex-facto proxying.
-                    destinationNode._result = cbResult._result;
-                    if (cbResult._onDispose) {
-                        addToDisposeQueue(destinationNode, cbResult._onDispose);
-                        cbResult._onDispose = [];
-                    }
-                } else {
-                    cbResult._buildData!._resolveAs = destinationNode;
+        if (isPNode(cbResult)) {
+            if (cbResult.finalized) {
+                // Post-ex-facto proxying.
+                destinationNode._result = cbResult._result;
+                if (cbResult._onDispose) {
+                    addToDisposeQueue(destinationNode, cbResult._onDispose);
+                    cbResult._onDispose = [];
                 }
             } else {
-                destinationNode._result = cbResult;
+                cbResult._buildData!._resolveAs = destinationNode;
+            }
+        } else {
+            destinationNode._result = cbResult;
+        }
+
+        if (this._current._disposeOps.length > 0) {
+            addToDisposeQueue(destinationNode, this._current._disposeOps);
+            this._current._disposeOps = [];
+        }
+    }
+
+    _finalize(target: IPNode): void {
+        if (process.env.NODE_ENV === 'check') {
+            let lookup: BaseNode | undefined;
+            if (this._current._announced) {
+                lookup = this._current._announced._head;
+            }
+            while (lookup && lookup !== target) {
+                lookup = lookup._buildData!._next;
+            }
+            if (lookup !== target) {
+                throw Error("Can't find target from here.");
+            }
+        }
+
+        let node: BaseNode = this._current._announced!._head!;
+        let end: BaseNode = target as BaseNode;
+
+        if (end._buildData!._next) {
+            this._current._announced!._head = end._buildData!._next;
+        } else {
+            this._current._announced = undefined;
+        }
+        end._buildData!._next = undefined;
+
+        /*
+        //These two steps are, I suspect, Technically unnecessary
+        
+        if (!this._current._announced._head) {
+            this._current._announced = {};
+        }
+        */
+        pushEnv(this);
+        this._stack.push(this._current);
+        this._current = { _node: node, _disposeOps: [] };
+
+        let done = false;
+        while (!done) {
+            this._finalizeNode(node);
+
+            // Queue up any work that was discovered in the process.
+            if (this._current._announced) {
+                end = this._current._announced._tail;
+                node._buildData!._next = this._current._announced._head;
+                this._current._announced = undefined;
             }
 
-            if (this._pendingOnDispose.length > 0) {
-                addToDisposeQueue(destinationNode, this._pendingOnDispose);
-                this._pendingOnDispose = [];
-            }
+            done = node === end;
+            const nextNode = node._buildData!._next as BaseNode;
+            node._buildData = undefined;
+            node = nextNode;
+        }
 
-            currentNode._buildData = undefined;
-            this._insert = this._insertStack.pop();
-        } while (currentNode !== this._end && this._queueHead);
-
-        const finalizePop = this._finalizeStack.pop()!;
-        this._end = finalizePop._end;
-        this._pendingOnDispose = finalizePop._pendingOnDispose;
-        this._currentNode = finalizePop._currentNode;
-
+        this._current = this._stack.pop()!;
         popEnv();
     }
 
