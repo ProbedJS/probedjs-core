@@ -25,8 +25,8 @@ export interface NodeBuildData {
     _cb: (...arg: unknown[]) => unknown;
     _args: unknown[];
 
-    _next?: IPNode;
-    _resolveAs?: IPNode;
+    _next?: BaseNode;
+    _resolveAs: BaseNode;
     _prober: IProber;
     _context: ProbingContext;
 }
@@ -43,17 +43,24 @@ export abstract class BaseNode implements IPNode {
     }
 
     dispose(): void {
-        if (this._onDispose) {
-            this._onDispose.forEach((c) => c());
-            this._onDispose = undefined;
-        }
+        // Nodes should only ever be disposed once
+        this._onDispose.forEach((c) => c());
+    }
+
+    _addToDispose(ops: DisposeOp[]): void {
+        this._onDispose.push(...ops);
+    }
+
+    _assign(rhs: BaseNode): void {
+        this._result = rhs._result;
+        this._onDispose.push(...rhs._onDispose);
     }
 
     abstract get result(): unknown;
 
     _result?: unknown;
     _probed_pnodetype?: number;
-    _onDispose?: DisposeOp[];
+    _onDispose: DisposeOp[] = [];
 
     _buildData?: NodeBuildData;
     _uniqueNodeId?: number;

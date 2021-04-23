@@ -20,12 +20,12 @@ describe('useOnDispose ', () => {
 
 class TestEnv implements Environment {
     count = 0;
-    probeContext?: ProbingContext;
+    probeContext: ProbingContext = { componentName: '' };
     _onDispose(): void {
         this.count += 1;
     }
 
-    _getProbingContext(): ProbingContext | undefined {
+    _getProbingContext(): ProbingContext {
         return this.probeContext;
     }
 }
@@ -75,13 +75,6 @@ describe('Environment', () => {
 describe('useProbingContext ', () => {
     it('Fails if used out of context', () => {
         expectThrowInNotProd(useProbingContext);
-    });
-
-    it('Fails if probing context is set', () => {
-        const env = new TestEnv();
-        pushEnv(env);
-        expectThrowInNotProd(useProbingContext);
-        popEnv();
     });
 
     it('Works if a probing context is set', () => {
