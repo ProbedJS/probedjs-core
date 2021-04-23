@@ -15,6 +15,7 @@
  */
 
 import { ProbingContext } from './ApiTypes';
+import { USER_VALIDATION_ENABLED } from './userValidation';
 
 export type DisposeOp = () => void;
 export interface Environment {
@@ -31,23 +32,23 @@ export const pushEnv = (ctx: Environment): void => {
 };
 
 export const popEnv = (): void => {
-    if (process.env.NODE_ENV !== 'production' && _envStack.length === 0) {
-        throw new Error('Environment underflow');
+    if (USER_VALIDATION_ENABLED && _envStack.length === 0) {
+        throw new Error('PROBE_USAGE: Environment underflow');
     }
     _currentEnv = _envStack.pop()!;
 };
 
 export const useOnDispose = (op: DisposeOp): void => {
-    if (process.env.NODE_ENV !== 'production' && !_currentEnv) {
-        throw new Error('Environment underflow');
+    if (USER_VALIDATION_ENABLED && !_currentEnv) {
+        throw new Error('PROBE_USAGE: Environment underflow');
     }
 
     _currentEnv!._onDispose(op);
 };
 
 export function useProbingContext(): ProbingContext {
-    if (process.env.NODE_ENV !== 'production' && !_currentEnv) {
-        throw new Error('Environment underflow');
+    if (USER_VALIDATION_ENABLED && !_currentEnv) {
+        throw new Error('PROBE_USAGE: Environment underflow');
     }
 
     return _currentEnv!._getProbingContext();

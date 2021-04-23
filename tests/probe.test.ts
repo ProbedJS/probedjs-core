@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { probe, createProber, PNode, useOnDispose, ProbingContext, Component, useProbingContext } from '../src';
-import { expectThrowInCheck, expectThrowInNotProd } from './utils';
+import { probe, createProber, PNode, useOnDispose, Component, useProbingContext } from '../src';
+import { invalidUserAction } from './utils';
 
 describe('Basic prober', () => {
     it('Works with function without arguments', () => {
@@ -38,35 +38,33 @@ describe('Basic prober', () => {
 
     it('Fails when using invalid CB', () => {
         //@ts-expect-error
-        expectThrowInNotProd(() => probe(null));
+        invalidUserAction(() => probe(null));
 
         //@ts-expect-error
-        expectThrowInNotProd(() => probe(undefined));
+        invalidUserAction(() => probe(undefined));
 
         //@ts-expect-error
-        expectThrowInNotProd(() => probe(12));
+        invalidUserAction(() => probe(12));
 
         //@ts-expect-error
-        expectThrowInNotProd(() => probe(true));
+        invalidUserAction(() => probe(true));
 
         //@ts-expect-error
-        expectThrowInNotProd(() => probe([]));
+        invalidUserAction(() => probe([]));
 
         //@ts-expect-error
-        expectThrowInNotProd(() => probe({}));
+        invalidUserAction(() => probe({}));
     });
 
     it('Fails when using an intrinsic', () => {
         //@ts-expect-error
-        expectThrowInNotProd(() => probe('yo', {}));
+        invalidUserAction(() => probe('yo', {}));
 
         //@ts-expect-error
-        expectThrowInNotProd(() => probe('', {}));
+        invalidUserAction(() => probe('', {}));
     });
 
-    // These cannot be made into runtime tests, because there's
-    // No way to determine at runtime if a function expects a context
-    // or not.
+    // These are typescript errors, but sometimes intentional in javascript...
     it('Fails when not passing enough arguments', () => {
         //@ts-expect-error
         () => probe((v1: number, v2: number) => v1 + v2, 12);
@@ -74,10 +72,7 @@ describe('Basic prober', () => {
 
     it('Fails when passing too many arguments', () => {
         //@ts-expect-error
-        () => expectThrowInNotProd(() => probe((v1: number) => v1, 12, 13));
-
-        //@ts-expect-error
-        () => expectThrowInNotProd(() => probe((v1: number, _ctx: ProbingContext) => v1, 12, 13));
+        () => () => probe((v1: number) => v1, 12, 13);
     });
 });
 
@@ -92,6 +87,27 @@ describe('Prober with intrinsics', () => {
 
     const sutProbe = createProber(mapping);
 
+    it('Fails when using invalid CB', () => {
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe(null));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe(undefined));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe(12));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe(true));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe([]));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe({}));
+    });
+
+
     it('Produces a payload', () => {
         const resultA = sutProbe('aaa', 1);
         const resultB = sutProbe('bbb', 1);
@@ -102,16 +118,16 @@ describe('Prober with intrinsics', () => {
 
     it('Fails when using wrong intrinsic', () => {
         //@ts-expect-error
-        expectThrowInNotProd(() => sutProbe('xyz', {}));
+        invalidUserAction(() => sutProbe('xyz', {}));
 
         //@ts-expect-error
-        expectThrowInNotProd(() => sutProbe('aa', {}));
+        invalidUserAction(() => sutProbe('aa', {}));
 
         //@ts-expect-error
-        expectThrowInNotProd(() => sutProbe('aaaa', {}));
+        invalidUserAction(() => sutProbe('aaaa', {}));
 
         //@ts-expect-error
-        expectThrowInNotProd(() => sutProbe('', {}));
+        invalidUserAction(() => sutProbe('', {}));
     });
 
     it('Still handles functional', () => {
@@ -150,6 +166,10 @@ describe('Dynamic intrinsic lookup', () => {
 
         expect(sutProbe('aaa', 0).result.x).toBe('aaa');
         expect(sutProbe('bbb', 'allo').result.x).toBe('bbb');
+
+        // In this specific case, typescript should complain, but it should still technically work.
+        //@ts-expect-error
+        expect(sutProbe('ccc', 'allo').result.x).toBe('ccc');
     });
 });
 
@@ -287,7 +307,7 @@ describe('Weird cases', () => {
         const a = prober((v: TMP) => v.x!.result, tmp);
         tmp.x = prober(() => 12);
 
-        expectThrowInCheck(() => {
+        invalidUserAction(() => {
             return a.result;
         });
     });

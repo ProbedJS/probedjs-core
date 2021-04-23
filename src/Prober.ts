@@ -11,65 +11,50 @@ import {
     FuncMap,
     ProbingContext,
 } from './ApiTypes';
-import { IProber, BaseNode, NodeImpl, UnwrapPNode, isPNode } from './Node';
+import { BaseNode, NodeImpl, UnwrapPNode, isPNode } from './Node';
+import { mark, unmark, assertMarked } from './internalValidation';
+import {
+    checkIsValidComponent,
+    checkIsValidFallback,
+    checkIsValidIntrinsics,
+    checkTargetNodeIsReachable,
+} from './userValidation';
+import { ComponentCb, IProber, isIntrinsic, ProberStackFrame } from './internalInterfaces';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ComponentCb = (...args: any[]) => any;
-
-const isIntrinsic = <I>(cb: IKeys<I> | ((...args: unknown[]) => unknown)): cb is IKeys<I> => {
-    return typeof cb === 'string';
-};
-
-let _NextUniqueNodeId = 0;
-
-interface NodeQueue {
-    _head: BaseNode;
-    _tail: BaseNode;
-}
-
-interface ProberStackFrame {
-    _node?: BaseNode;
-    _disposeOps: DisposeOp[];
-    _announced?: NodeQueue;
-}
-
-class Prober<I extends FuncMap> implements IProber {
-    private _intrinsics: Partial<I>;
-    private _fallback?: IntrinsicFallback<I>;
-    private _stack: ProberStackFrame[] = [];
-    private _currentFrame: ProberStackFrame = { _disposeOps: [] };
+export class Prober<I extends FuncMap> implements IProber<I> {
+    _intrinsics: Partial<I>;
+    _fallback?: IntrinsicFallback<I>;
+    _stack: ProberStackFrame[] = [];
+    _currentFrame: ProberStackFrame = { _disposeOps: [] };
+    _nextNodeId?: number;
 
     _onDispose(op: DisposeOp): void {
+        assertMarked(this, 'finalizing');
+
         this._currentFrame._disposeOps.push(op);
     }
 
     _getProbingContext(): ProbingContext {
+        assertMarked(this, 'finalizing');
+
         return this._currentFrame!._node!._buildData!._context;
     }
 
     constructor(intrinsics: Partial<I>, fallback?: IntrinsicFallback<I>) {
+        checkIsValidIntrinsics(intrinsics);
+        checkIsValidFallback(fallback);
+
         this._intrinsics = intrinsics;
         this._fallback = fallback;
     }
 
-    _announce<T extends IKeys<I> | ComponentCb>(what: T, ..._args: ProbedParams<T, I>): AsPNode<ProbedResult<T, I>> {
-        const { _cb, _name } = this._getCb(what);
-        if (process.env.NODE_ENV !== 'production') {
-            if (isIntrinsic<I>(what)) {
-                if (!this._intrinsics[what] && !this._fallback) {
-                    throw Error(`"${what}" is not a registered intrinsic in this Prober`);
-                }
-            } else {
-                if (typeof what !== 'function') {
-                    throw Error(`"${what}" is not a function`);
-                }
-            }
-        }
+    _announce<T extends IKeys<I> | ComponentCb>(
+        component: T,
+        ..._args: ProbedParams<T, I>
+    ): AsPNode<ProbedResult<T, I>> {
+        const { _cb, _name } = this._resolveComponent(component);
 
         const newNode = new NodeImpl<UnwrapPNode<T>>();
-        if (process.env.NODE_ENV !== 'production') {
-            newNode._uniqueNodeId = _NextUniqueNodeId++;
-        }
 
         if (!this._currentFrame._announced) {
             this._currentFrame._announced = { _head: newNode, _tail: newNode };
@@ -78,6 +63,12 @@ class Prober<I extends FuncMap> implements IProber {
             this._currentFrame._announced._tail = newNode;
         }
 
+        if (process.env.NODE_ENV !== 'production') {
+            if (!this._nextNodeId) {
+                this._nextNodeId = 0;
+            }
+            newNode._nodeId = this._nextNodeId++;
+        }
         newNode._buildData = {
             _resolveAs: newNode,
             _cb,
@@ -91,13 +82,13 @@ class Prober<I extends FuncMap> implements IProber {
         return newNode as AsPNode<ProbedResult<T, I>>;
     }
 
-    _finalizeNode(node: BaseNode) {
-        // If a component returns a Node (as opposed to a value), then we short-circuit to the parent.
-        const bd = node._buildData!;
-        const destinationNode = bd._resolveAs;
+    _finalizeNode(node: BaseNode): void {
+        const buildData = node._buildData!;
+        const destinationNode = buildData._resolveAs;
 
-        this._currentFrame._node = node;
-        const cbResult = bd._cb(...bd._args, bd._context);
+        const frame = this._currentFrame;
+        frame._node = node;
+        const cbResult = buildData._cb(...buildData._args);
 
         if (isPNode(cbResult)) {
             if (cbResult.finalized) {
@@ -109,25 +100,13 @@ class Prober<I extends FuncMap> implements IProber {
             destinationNode._result = cbResult;
         }
 
-        if (this._currentFrame._disposeOps.length > 0) {
-            destinationNode._addToDispose(this._currentFrame._disposeOps);
-            this._currentFrame._disposeOps = [];
-        }
+        destinationNode._addToDispose(frame._disposeOps);
+        frame._disposeOps = [];
     }
 
     _finalize(target: IPNode): void {
-        if (process.env.NODE_ENV === 'check') {
-            let lookup: BaseNode | undefined;
-            if (this._currentFrame._announced) {
-                lookup = this._currentFrame._announced._head;
-            }
-            while (lookup && lookup !== target) {
-                lookup = lookup._buildData!._next;
-            }
-            if (lookup !== target) {
-                throw Error("Can't find target from here.");
-            }
-        }
+        mark(this, 'finalizing');
+        checkTargetNodeIsReachable(this, target);
 
         let node = this._currentFrame._announced!._head!;
         let end = target as BaseNode;
@@ -164,18 +143,22 @@ class Prober<I extends FuncMap> implements IProber {
 
         this._currentFrame = this._stack.pop()!;
         popEnv();
+
+        unmark(this, 'finalizing');
     }
 
-    private _getCb<T extends IKeys<I> | ComponentCb>(what: T): { _cb: ComponentCb; _name: string } {
-        if (isIntrinsic<I>(what)) {
-            let _cb: ComponentCb | undefined = this._intrinsics[what];
+    private _resolveComponent(component: IKeys<I> | ComponentCb): { _cb: ComponentCb; _name: string } {
+        checkIsValidComponent(this, component);
+
+        if (isIntrinsic<I>(component)) {
+            let _cb: ComponentCb | undefined = this._intrinsics[component];
             if (!_cb) {
                 _cb = this._fallback!;
             }
 
-            return { _cb: _cb!, _name: what.toString() };
+            return { _cb: _cb!, _name: component.toString() };
         } else {
-            return { _cb: what as ComponentCb, _name: (what as ComponentCb).name };
+            return { _cb: component, _name: component.name };
         }
     }
 }

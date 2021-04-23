@@ -16,10 +16,8 @@
 
 import { IPNode, ProbingContext } from './ApiTypes';
 import { DisposeOp } from './Environment';
-
-export interface IProber {
-    _finalize(target: IPNode): void;
-}
+import { assertUnmarked, mark } from './internalValidation';
+import { IProberBase } from './internalInterfaces';
 
 export interface NodeBuildData {
     _cb: (...arg: unknown[]) => unknown;
@@ -27,7 +25,7 @@ export interface NodeBuildData {
 
     _next?: BaseNode;
     _resolveAs: BaseNode;
-    _prober: IProber;
+    _prober: IProberBase;
     _context: ProbingContext;
 }
 
@@ -43,6 +41,8 @@ export abstract class BaseNode implements IPNode {
     }
 
     dispose(): void {
+        assertUnmarked(this, 'disposed');
+        mark(this, 'disposed');
         // Nodes should only ever be disposed once
         this._onDispose.forEach((c) => c());
     }
@@ -63,7 +63,8 @@ export abstract class BaseNode implements IPNode {
     _onDispose: DisposeOp[] = [];
 
     _buildData?: NodeBuildData;
-    _uniqueNodeId?: number;
+
+    _nodeId?: number;
 }
 
 export class NodeImpl<T> extends BaseNode {

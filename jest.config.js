@@ -1,11 +1,12 @@
 const baseConfig = {
-    preset: 'ts-jest',
+    preset: 'ts-jest/presets/js-with-ts',
     testEnvironment: 'node',
     transform: {
         '^.+\\.ts?$': 'ts-jest',
     },
-    testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.ts?$',
+    testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(ts|js)?$',
     moduleFileExtensions: ['js', 'ts'],
+    coveragePathIgnorePatterns: ['/node_modules/', 'src/internalValidation.ts'],
 };
 
 const fullConfig = {
