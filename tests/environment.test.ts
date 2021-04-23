@@ -77,13 +77,6 @@ describe('useProbingContext ', () => {
         expectThrowInNotProd(useProbingContext);
     });
 
-    it('Fails if probing context is set', () => {
-        const env = new TestEnv();
-        pushEnv(env);
-        expectThrowInNotProd(useProbingContext);
-        popEnv();
-    });
-
     it('Works if a probing context is set', () => {
         const env = new TestEnv();
         env.probeContext = { componentName: 'aaa' };

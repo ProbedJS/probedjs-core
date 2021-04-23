@@ -105,7 +105,7 @@ class Prober<I extends FuncMap> implements IProber {
                 destinationNode._result = cbResult._result;
                 if (cbResult._onDispose) {
                     destinationNode._addToDispose(cbResult._onDispose);
-                    cbResult._onDispose = undefined;
+                    // No need to clear the list on cbResult, that node is getting dropped.
                 }
             } else {
                 cbResult._buildData!._resolveAs = destinationNode;
