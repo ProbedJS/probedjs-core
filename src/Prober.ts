@@ -18,6 +18,7 @@ import {
     checkIsValidFallback,
     checkIsValidIntrinsics,
     checkTargetNodeIsReachable,
+    USER_VALIDATION_ENABLED,
 } from './userValidation';
 import { ComponentCb, IProber, isIntrinsic, ProberStackFrame } from './internalInterfaces';
 
@@ -63,7 +64,7 @@ export class Prober<I extends FuncMap> implements IProber<I> {
             this._currentFrame._announced._tail = newNode;
         }
 
-        if (process.env.NODE_ENV !== 'production') {
+        if (USER_VALIDATION_ENABLED) {
             if (!this._nextNodeId) {
                 this._nextNodeId = 0;
             }

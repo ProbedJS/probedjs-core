@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { probe, createProber, PNode, useOnDispose } from '@probed/core';
+import { probe, createProber, PNode, useOnDispose, Component, useProbingContext } from '@probed/core';
+import { invalidUserAction } from './utils';
 
 describe('Basic prober', () => {
     it('Works with function without arguments', () => {
@@ -36,54 +37,74 @@ describe('Basic prober', () => {
     });
 
     it('Fails when using invalid CB', () => {
-        expect(() => {
-            //@ts-expect-error
-            probe(null);
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => probe(null));
 
-        expect(() => {
-            //@ts-ignore
-            probe(undefined);
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => probe(undefined));
 
-        expect(() => {
-            //@ts-expect-error
-            probe(12);
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => probe(12));
 
-        expect(() => {
-            //@ts-expect-error
-            probe(true);
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => probe(true));
 
-        expect(() => {
-            //@ts-expect-error
-            probe([]);
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => probe([]));
 
-        expect(() => {
-            //@ts-expect-error
-            probe({});
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => probe({}));
     });
 
     it('Fails when using an intrinsic', () => {
-        expect(() => {
-            //@ts-expect-error
-            probe('yo', {});
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => probe('yo', {}));
 
-        expect(() => {
-            //@ts-expect-error
-            probe('', {});
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => probe('', {}));
+    });
+
+    // These are typescript errors, but sometimes intentional in javascript...
+    it('Fails when not passing enough arguments', () => {
+        //@ts-expect-error
+        () => probe((v1: number, v2: number) => v1 + v2, 12);
+    });
+
+    it('Fails when passing too many arguments', () => {
+        //@ts-expect-error
+        () => () => probe((v1: number) => v1, 12, 13);
     });
 });
 
 describe('Prober with intrinsics', () => {
-    const sutProbe = createProber({
-        aaa: (v: number) => v + 1,
+    const mapping = {
+        aaa: (v: number) => {
+            expect(useProbingContext().componentName).toBe('aaa');
+            return v + 1;
+        },
         bbb: (v: number) => v + 4,
+    };
+
+    const sutProbe = createProber(mapping);
+
+    it('Fails when using invalid CB', () => {
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe(null));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe(undefined));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe(12));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe(true));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe([]));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe({}));
     });
 
     it('Produces a payload', () => {
@@ -95,15 +116,59 @@ describe('Prober with intrinsics', () => {
     });
 
     it('Fails when using wrong intrinsic', () => {
-        expect(() => {
-            //@ts-expect-error
-            sutProbe('aab', {});
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe('xyz', {}));
 
-        expect(() => {
-            //@ts-expect-error
-            sutProbe('', {});
-        }).toThrow();
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe('aa', {}));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe('aaaa', {}));
+
+        //@ts-expect-error
+        invalidUserAction(() => sutProbe('', {}));
+    });
+
+    it('Still handles functional', () => {
+        const result = sutProbe((v: number) => v + 1, 1);
+        expect(result.result).toBe(2);
+    });
+
+    it('works with higher-order components', () => {
+        const HOC = (c: Component<[number], unknown>) => sutProbe(c, 12);
+
+        expect(sutProbe(HOC, mapping.aaa).result).toBe(13);
+        expect(sutProbe(HOC, mapping.bbb).result).toBe(16);
+    });
+});
+
+describe('Dynamic intrinsic lookup', () => {
+    it('works', () => {
+        interface Base {
+            x: string;
+        }
+
+        interface Specialized extends Base {
+            y: number;
+        }
+
+        interface TypeInfo {
+            aaa: (v: number) => Base;
+            bbb: (v: string) => Specialized;
+        }
+
+        const componentImpl = (_: number | string): Base | Specialized => {
+            return { x: useProbingContext().componentName };
+        };
+
+        const sutProbe = createProber<TypeInfo>({}, componentImpl);
+
+        expect(sutProbe('aaa', 0).result.x).toBe('aaa');
+        expect(sutProbe('bbb', 'allo').result.x).toBe('bbb');
+
+        // In this specific case, typescript should complain, but it should still technically work.
+        //@ts-expect-error
+        expect(sutProbe('ccc', 'allo').result.x).toBe('ccc');
     });
 });
 
@@ -131,6 +196,17 @@ describe('Component With dispose', () => {
     });
 });
 
+describe('Component with no dispose', () => {
+    const component = (x: number) => x * x;
+
+    it('Disposing is harmless', () => {
+        const node = probe(component, 2);
+        expect(node.result).toBe(4);
+
+        node.dispose();
+    });
+});
+
 describe('Hierarchical components', () => {
     const Leaf = () => {
         return 3;
@@ -148,5 +224,103 @@ describe('Hierarchical components', () => {
 
     it('Visited all children', () => {
         expect(probe(Root).result).toBe(9);
+    });
+});
+
+describe('Proxy components', () => {
+    let disposed = 0;
+
+    const Sub = (v: number) => {
+        useOnDispose(() => (disposed += 2));
+        return v * v;
+    };
+
+    const Parent = (v: number) => {
+        useOnDispose(() => (disposed += 3));
+        return probe(Sub, v);
+    };
+
+    const node = probe(Parent, 4);
+    const result = node.result;
+
+    node.dispose();
+
+    it('Produced the correct value', () => {
+        expect(result).toBe(16);
+    });
+
+    it('Disposed correctly', () => {
+        expect(disposed).toBe(5);
+    });
+});
+
+describe('Pre-finalized components', () => {
+    let disposed = 0;
+
+    const Sub = (v: number) => {
+        useOnDispose(() => (disposed += 2));
+        return v * v;
+    };
+
+    const HarmlessSub = (v: number) => {
+        return v * v;
+    };
+
+    const Parent = <T>(v: number, c: Component<[number], T>) => {
+        useOnDispose(() => (disposed += 3));
+        const subNode = probe(c, v);
+        subNode.finalize();
+
+        return subNode;
+    };
+
+    const node = probe(Parent, 4, Sub);
+    const harmlessNode = probe(Parent, 5, HarmlessSub);
+
+    const result = node.result;
+    const harmlessResult = harmlessNode.result;
+
+    node.dispose();
+    harmlessNode.dispose();
+
+    it('Produced the correct value', () => {
+        expect(result).toBe(16);
+        expect(harmlessResult).toBe(25);
+    });
+
+    it('Disposed correctly', () => {
+        expect(disposed).toBe(8);
+    });
+});
+
+describe('Weird cases', () => {
+    it('catches out of context finalization', () => {
+        const prober = createProber({});
+
+        //This actually takes a surprising effort to pull off...
+        interface TMP {
+            x?: PNode<number>;
+        }
+        const tmp: TMP = {};
+
+        const a = prober((v: TMP) => v.x!.result, tmp);
+        tmp.x = prober(() => 12);
+
+        invalidUserAction(() => {
+            return a.result;
+        });
+    });
+
+    it('Wildly out of order valid evaluation', () => {
+        //This actually takes a surprising effort to pull off...
+
+        const Comp = (x: number) => x + x;
+        const data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        const nodes = data.map((v) => probe(Comp, v));
+
+        expect(nodes[5].result).toBe(10);
+        expect(nodes[2].result).toBe(4);
+        expect(nodes[9].result).toBe(18);
+        expect(nodes[0].result).toBe(0);
     });
 });

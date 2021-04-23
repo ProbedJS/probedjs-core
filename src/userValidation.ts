@@ -2,7 +2,7 @@ import { FuncMap, IKeys, IntrinsicFallback, IPNode } from './ApiTypes';
 import { BaseNode } from './Node';
 import { IProber, ComponentCb, isIntrinsic, IProberBase } from './internalInterfaces';
 
-export const USER_VALIDATION_ENABLED = process.env.USER_VALIDATION_ENABLED === 'ON';
+export const USER_VALIDATION_ENABLED = process.env.PROBED_USER_VALIDATION === 'ON';
 
 // This file DOES contribute to coverage testing.
 // In fact, this file would be a lot nicer if we had a little assert function,

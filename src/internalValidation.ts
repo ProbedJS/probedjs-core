@@ -33,12 +33,18 @@ const markKey = (key: string): string => {
 
 //eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const assertMarked = (what: Record<string, any>, key: string, msg?: string): void => {
-    assertInternal(what[markKey(key)] as boolean, msg || 'expecting mark: ' + key);
+    // This check is not redundant, because markKey still gets invoked.
+    if (INTERNAL_VALIDATION_ENABLED) {
+        assertInternal(what[markKey(key)] as boolean, msg || 'expecting mark: ' + key);
+    }
 };
 
 //eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const assertUnmarked = (what: Record<string, any>, key: string, msg?: string): void => {
-    assertInternal(!what[markKey(key)] as boolean, msg || 'unexpected mark: ' + key);
+    // This check is not redundant, because markKey still gets invoked.
+    if (INTERNAL_VALIDATION_ENABLED) {
+        assertInternal(!what[markKey(key)] as boolean, msg || 'unexpected mark: ' + key);
+    }
 };
 
 //eslint-disable-next-line @typescript-eslint/no-explicit-any

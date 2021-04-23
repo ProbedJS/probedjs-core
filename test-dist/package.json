@@ -1,6 +1,9 @@
 {
     "scripts": {
-        "test": "jest --verbose"
+        "test:dev": "jest --setupFiles tests/setup/dev.js",
+        "test:check": "jest --setupFiles tests/setup/check.js",
+        "test:prod": "jest --setupFiles tests/setup/prod.js",
+        "test": "npm run test:dev && npm run test:prod && npm run test:check"
     },
     "author": {
         "name": "Francois Chabot",
