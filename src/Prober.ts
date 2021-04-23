@@ -87,6 +87,7 @@ class Prober<I extends FuncMap> implements IProber {
         }
 
         newNode._buildData = {
+            _resolveAs: newNode,
             _cb,
             _prober: this,
             _args,
@@ -100,10 +101,7 @@ class Prober<I extends FuncMap> implements IProber {
 
     _finalizeNode(node: BaseNode) {
         // If a component returns a Node (as opposed to a value), then we short-circuit to the parent.
-        let destinationNode = node;
-        while (destinationNode._buildData && destinationNode._buildData._resolveAs) {
-            destinationNode = destinationNode._buildData!._resolveAs;
-        }
+        const destinationNode = node._buildData!._resolveAs;
 
         this._current._node = node;
         const { _cb, _args } = node._buildData!;
@@ -115,7 +113,7 @@ class Prober<I extends FuncMap> implements IProber {
                 destinationNode._result = cbResult._result;
                 if (cbResult._onDispose) {
                     addToDisposeQueue(destinationNode, cbResult._onDispose);
-                    cbResult._onDispose = [];
+                    cbResult._onDispose = undefined;
                 }
             } else {
                 cbResult._buildData!._resolveAs = destinationNode;
@@ -144,8 +142,8 @@ class Prober<I extends FuncMap> implements IProber {
             }
         }
 
-        let node: BaseNode = this._current._announced!._head!;
-        let end: BaseNode = target as BaseNode;
+        let node = this._current._announced!._head!;
+        let end = target as BaseNode;
 
         if (end._buildData!._next) {
             this._current._announced!._head = end._buildData!._next;
@@ -154,13 +152,6 @@ class Prober<I extends FuncMap> implements IProber {
         }
         end._buildData!._next = undefined;
 
-        /*
-        //These two steps are, I suspect, Technically unnecessary
-        
-        if (!this._current._announced._head) {
-            this._current._announced = {};
-        }
-        */
         pushEnv(this);
         this._stack.push(this._current);
         this._current = { _node: node, _disposeOps: [] };
@@ -177,7 +168,7 @@ class Prober<I extends FuncMap> implements IProber {
             }
 
             done = node === end;
-            const nextNode = node._buildData!._next as BaseNode;
+            const nextNode = node._buildData!._next;
             node._buildData = undefined;
             node = nextNode;
         }

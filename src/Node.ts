@@ -25,8 +25,8 @@ export interface NodeBuildData {
     _cb: (...arg: unknown[]) => unknown;
     _args: unknown[];
 
-    _next?: IPNode;
-    _resolveAs?: IPNode;
+    _next?: BaseNode;
+    _resolveAs: BaseNode;
     _prober: IProber;
     _context: ProbingContext;
 }
