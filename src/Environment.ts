@@ -19,7 +19,7 @@ import { ProbingContext } from './ApiTypes';
 export type DisposeOp = () => void;
 export interface Environment {
     _onDispose: (op: DisposeOp) => void;
-    _getProbingContext: () => ProbingContext | undefined;
+    _getProbingContext: () => ProbingContext;
 }
 
 let _currentEnv: Environment | null = null;
@@ -50,10 +50,5 @@ export function useProbingContext(): ProbingContext {
         throw new Error('Environment underflow');
     }
 
-    const result = _currentEnv!._getProbingContext();
-    if (process.env.NODE_ENV !== 'production' && !result) {
-        throw new Error('There is no active probing context');
-    }
-
-    return result!;
+    return _currentEnv!._getProbingContext();
 }

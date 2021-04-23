@@ -37,14 +37,14 @@ class Prober<I extends FuncMap> implements IProber {
     private _intrinsics: Partial<I>;
     private _fallback?: IntrinsicFallback<I>;
     private _stack: ProberStackFrame[] = [];
-    private _current: ProberStackFrame = { _disposeOps: [] };
+    private _currentFrame: ProberStackFrame = { _disposeOps: [] };
 
     _onDispose(op: DisposeOp): void {
-        this._current._disposeOps.push(op);
+        this._currentFrame._disposeOps.push(op);
     }
 
-    _getProbingContext(): ProbingContext | undefined {
-        return this._current!._node!._buildData!._context;
+    _getProbingContext(): ProbingContext {
+        return this._currentFrame!._node!._buildData!._context;
     }
 
     constructor(intrinsics: Partial<I>, fallback?: IntrinsicFallback<I>) {
@@ -71,11 +71,11 @@ class Prober<I extends FuncMap> implements IProber {
             newNode._uniqueNodeId = _NextUniqueNodeId++;
         }
 
-        if (!this._current._announced) {
-            this._current._announced = { _head: newNode, _tail: newNode };
+        if (!this._currentFrame._announced) {
+            this._currentFrame._announced = { _head: newNode, _tail: newNode };
         } else {
-            this._current._announced._tail._buildData!._next = newNode;
-            this._current._announced._tail = newNode;
+            this._currentFrame._announced._tail._buildData!._next = newNode;
+            this._currentFrame._announced._tail = newNode;
         }
 
         newNode._buildData = {
@@ -93,11 +93,11 @@ class Prober<I extends FuncMap> implements IProber {
 
     _finalizeNode(node: BaseNode) {
         // If a component returns a Node (as opposed to a value), then we short-circuit to the parent.
-        const destinationNode = node._buildData!._resolveAs;
+        const bd = node._buildData!;
+        const destinationNode = bd._resolveAs;
 
-        this._current._node = node;
-        const { _cb, _args } = node._buildData!;
-        const cbResult = _cb(..._args, node._buildData!._context);
+        this._currentFrame._node = node;
+        const cbResult = bd._cb(...bd._args, bd._context);
 
         if (isPNode(cbResult)) {
             if (cbResult.finalized) {
@@ -114,17 +114,17 @@ class Prober<I extends FuncMap> implements IProber {
             destinationNode._result = cbResult;
         }
 
-        if (this._current._disposeOps.length > 0) {
-            destinationNode._addToDispose(this._current._disposeOps);
-            this._current._disposeOps = [];
+        if (this._currentFrame._disposeOps.length > 0) {
+            destinationNode._addToDispose(this._currentFrame._disposeOps);
+            this._currentFrame._disposeOps = [];
         }
     }
 
     _finalize(target: IPNode): void {
         if (process.env.NODE_ENV === 'check') {
             let lookup: BaseNode | undefined;
-            if (this._current._announced) {
-                lookup = this._current._announced._head;
+            if (this._currentFrame._announced) {
+                lookup = this._currentFrame._announced._head;
             }
             while (lookup && lookup !== target) {
                 lookup = lookup._buildData!._next;
@@ -134,29 +134,31 @@ class Prober<I extends FuncMap> implements IProber {
             }
         }
 
-        let node = this._current._announced!._head!;
+        let node = this._currentFrame._announced!._head!;
         let end = target as BaseNode;
 
         if (end._buildData!._next) {
-            this._current._announced!._head = end._buildData!._next;
+            this._currentFrame._announced!._head = end._buildData!._next;
         } else {
-            this._current._announced = undefined;
+            this._currentFrame._announced = undefined;
         }
         end._buildData!._next = undefined;
 
         pushEnv(this);
-        this._stack.push(this._current);
-        this._current = { _node: node, _disposeOps: [] };
+        this._stack.push(this._currentFrame);
+        this._currentFrame = { _node: node, _disposeOps: [] };
 
         let done = false;
         while (!done) {
             this._finalizeNode(node);
 
-            // Queue up any work that was discovered in the process.
-            if (this._current._announced) {
-                end = this._current._announced._tail;
-                node._buildData!._next = this._current._announced._head;
-                this._current._announced = undefined;
+            // Queue up any work that was discovered in the process,
+            // and update our end target so that we complete it before
+            // returning.
+            if (this._currentFrame._announced) {
+                end = this._currentFrame._announced._tail;
+                node._buildData!._next = this._currentFrame._announced._head;
+                this._currentFrame._announced = undefined;
             }
 
             done = node === end;
@@ -165,20 +167,18 @@ class Prober<I extends FuncMap> implements IProber {
             node = nextNode!;
         }
 
-        this._current = this._stack.pop()!;
+        this._currentFrame = this._stack.pop()!;
         popEnv();
     }
 
     private _getCb<T extends IKeys<I> | ComponentCb>(what: T): { _cb: ComponentCb; _name: string } {
         if (isIntrinsic<I>(what)) {
             let _cb: ComponentCb | undefined = this._intrinsics[what];
-            const _name = what.toString();
             if (!_cb) {
-                // This is safe, it's caught at the start of _announce()
                 _cb = this._fallback!;
             }
 
-            return { _cb: _cb!, _name };
+            return { _cb: _cb!, _name: what.toString() };
         } else {
             return { _cb: what as ComponentCb, _name: (what as ComponentCb).name };
         }

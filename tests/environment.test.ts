@@ -20,12 +20,12 @@ describe('useOnDispose ', () => {
 
 class TestEnv implements Environment {
     count = 0;
-    probeContext?: ProbingContext;
+    probeContext: ProbingContext = { componentName: '' };
     _onDispose(): void {
         this.count += 1;
     }
 
-    _getProbingContext(): ProbingContext | undefined {
+    _getProbingContext(): ProbingContext {
         return this.probeContext;
     }
 }

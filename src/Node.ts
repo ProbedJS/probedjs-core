@@ -43,25 +43,19 @@ export abstract class BaseNode implements IPNode {
     }
 
     dispose(): void {
-        if (this._onDispose) {
-            this._onDispose.forEach((c) => c());
-            this._onDispose = undefined;
-        }
+        // Nodes should only ever be disposed once
+        this._onDispose.forEach((c) => c());
     }
 
     _addToDispose(ops: DisposeOp[]): void {
-        if (!this._onDispose) {
-            this._onDispose = ops;
-        } else {
-            this._onDispose = this._onDispose.concat(ops);
-        }
-    };
+        this._onDispose.push(...ops);
+    }
 
     abstract get result(): unknown;
 
     _result?: unknown;
     _probed_pnodetype?: number;
-    _onDispose?: DisposeOp[];
+    _onDispose: DisposeOp[] = [];
 
     _buildData?: NodeBuildData;
     _uniqueNodeId?: number;
