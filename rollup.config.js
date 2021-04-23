@@ -8,8 +8,10 @@ import { terser } from 'rollup-plugin-terser';
 
 const prod = replace({
     preventAssignment: true,
-    'process.env.NODE_ENV': JSON.stringify('production'),
+    'process.env.PROBED_INTERNAL_VALIDATION': 'undefined',
+    'process.env.PROBED_USER_VALIDATION': 'undefined',
 });
+
 
 const cleanup = rollupCleanup({ comments: 'none', extensions: ['.ts', '.js'] });
 const typescript = rollupTypescript({ tsconfig: 'tsconfig.prod.json', outDir: './dist' });

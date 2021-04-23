@@ -1,6 +1,6 @@
 import { ProbingContext } from '../src';
 import { popEnv, pushEnv, useOnDispose, Environment, useProbingContext } from '../src/Environment';
-import { expectThrowInNotProd } from './utils';
+import { invalidUserAction } from './utils';
 
 const noop = () => {
     // do nothing.
@@ -32,7 +32,7 @@ class TestEnv implements Environment {
 
 describe('Environment', () => {
     it('Catches underflows', () => {
-        expectThrowInNotProd(popEnv);
+        invalidUserAction(popEnv);
     });
 
     it('Registers', () => {
@@ -43,8 +43,8 @@ describe('Environment', () => {
         expect(env.count).toBe(1);
         popEnv();
 
-        expectThrowInNotProd(pingDispose);
-        expectThrowInNotProd(popEnv);
+        invalidUserAction(pingDispose);
+        invalidUserAction(popEnv);
     });
 
     it('Maintains the stack', () => {
@@ -67,14 +67,14 @@ describe('Environment', () => {
         expect(envB.count).toBe(1);
 
         popEnv();
-        expectThrowInNotProd(pingDispose);
-        expectThrowInNotProd(popEnv);
+        invalidUserAction(pingDispose);
+        invalidUserAction(popEnv);
     });
 });
 
 describe('useProbingContext ', () => {
     it('Fails if used out of context', () => {
-        expectThrowInNotProd(useProbingContext);
+        invalidUserAction(useProbingContext);
     });
 
     it('Works if a probing context is set', () => {

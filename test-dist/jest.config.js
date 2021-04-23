@@ -4,7 +4,7 @@ const baseConfig = {
     transform: {
         '^.+\\.ts?$': 'ts-jest',
     },
-    testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.(ts|js)?$',
+    testRegex: '(/__tests__/.*|(\\.|/)(disttest))\\.(ts|js)?$',
     moduleFileExtensions: ['js', 'ts'],
     coveragePathIgnorePatterns: ['/node_modules/', 'src/internalValidation.ts'],
 };
@@ -39,4 +39,4 @@ const fullConfig = {
     ],
 };
 
-export default process.env.TEST === 'FULL' ? fullConfig : baseConfig;
+module.exports = fullConfig;
