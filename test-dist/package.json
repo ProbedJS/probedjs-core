@@ -1,9 +1,6 @@
 {
     "scripts": {
-        "test:dev": "jest --setupFiles tests/setup/dev.js",
-        "test:check": "jest --setupFiles tests/setup/check.js",
-        "test:prod": "jest --setupFiles tests/setup/prod.js",
-        "test": "npm run test:dev && npm run test:prod && npm run test:check"
+        "test": "jest"
     },
     "author": {
         "name": "Francois Chabot",
@@ -16,14 +13,5 @@
         "jest": "^26.6.3",
         "ts-jest": "^26.5.5",
         "typescript": "^4.2.4"
-    },
-    "jest": {
-        "preset": "ts-jest",
-        "testEnvironment": "node",
-        "transform": {
-            "^.+\\.ts?$": "ts-jest"
-        },
-        "testRegex": "(/__tests__/.*|(\\.|/)(disttest))\\.ts?$",
-        "moduleFileExtensions": ["js", "ts"]
     }
 }
