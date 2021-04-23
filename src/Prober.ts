@@ -101,12 +101,7 @@ class Prober<I extends FuncMap> implements IProber {
 
         if (isPNode(cbResult)) {
             if (cbResult.finalized) {
-                // Post-ex-facto proxying.
-                destinationNode._result = cbResult._result;
-                if (cbResult._onDispose) {
-                    destinationNode._addToDispose(cbResult._onDispose);
-                    // No need to clear the list on cbResult, that node is getting dropped.
-                }
+                destinationNode._assign(cbResult);
             } else {
                 cbResult._buildData!._resolveAs = destinationNode;
             }

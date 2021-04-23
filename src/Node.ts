@@ -51,6 +51,11 @@ export abstract class BaseNode implements IPNode {
         this._onDispose.push(...ops);
     }
 
+    _assign(rhs: BaseNode): void {
+        this._result = rhs._result;
+        this._onDispose.push(...rhs._onDispose);
+    }
+
     abstract get result(): unknown;
 
     _result?: unknown;
